@@ -1,0 +1,22 @@
+[build-system]
+requires = ["hatchling", "requests"]
+build-backend = "hatchling.build"
+
+[project]
+name = "firipy"
+version = "0.0.1"
+authors = [
+  { name="Ove Aursland", email="jeircul@mailbox.org" },
+]
+description = "A wrapper for Firi API"
+readme = "README.md"
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/jeircul/firipy"
+"Bug Tracker" = "https://github.com/jeircul/firipy/issues"
