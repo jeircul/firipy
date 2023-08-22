@@ -1,7 +1,7 @@
 from requests import Session
 
 
-class Firi:
+class FiriAPI:
     # https://developers.firi.com/
     def __init__(self, token):
         headers = {"miraiex-access-key": token}
