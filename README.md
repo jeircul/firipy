@@ -23,7 +23,7 @@ firi = FiriAPI(token='YOUR_API_KEY')
 print(firi.balance())
 ```
 
-### Endpoints included
+### ✨ Endpoints included
 
 > :book: [Firi Trading API (1.0.0)](https://developers.firi.com/) for more details
 
