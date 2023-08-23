@@ -25,6 +25,8 @@ print(firi.balance())
 
 ### Endpoints included
 
+> :book: [Firi Trading API (1.0.0)](https://developers.firi.com/) for more details
+
 <details><summary>time</summary>
 <p>
 
