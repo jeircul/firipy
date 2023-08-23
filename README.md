@@ -14,7 +14,7 @@ pip install -U firipy
 
 ## 🚀 Usage
 
-**API Key** from firi.no is required:
+**API Key** from [Firi](https://platform.firi.com/) is required:
 ```python
 from firipy import FiriAPI
 
