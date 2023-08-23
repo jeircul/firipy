@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling", "requests"]
+requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
 name = "firipy"
-version = "0.0.3"
+version = "0.0.4"
 authors = [
   { name="Ove Aursland", email="jeircul@mailbox.org" },
 ]
@@ -15,6 +15,9 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
+]
+dependencies = [
+    "requests",
 ]
 
 [project.urls]
