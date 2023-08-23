@@ -1,6 +1,7 @@
 # Firi API wrapper
 
 [![Upload Python Package](https://github.com/jeircul/firipy/actions/workflows/publish.yml/badge.svg)](https://github.com/jeircul/firipy/actions/workflows/publish.yml)
+[![Ruff](https://github.com/jeircul/firipy/actions/workflows/ruff.yml/badge.svg)](https://github.com/jeircul/firipy/actions/workflows/ruff.yml)
 ![PyPI - Version](https://img.shields.io/pypi/v/firipy)
 ![GitHub](https://img.shields.io/github/license/jeircul/firipy)
 
