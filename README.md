@@ -21,7 +21,7 @@ pip install -U firipy
 from firipy import FiriAPI
 
 firi = FiriAPI(token='YOUR_API_KEY')
-print(firi.balance())
+print(firi.balances())
 ```
 
 ## 🔌 Endpoints included
