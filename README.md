@@ -20,8 +20,8 @@ pip install -U firipy
 ```python
 from firipy import FiriAPI
 
-firi = FiriAPI(token='YOUR_API_KEY')
-print(firi.balances())
+fp = FiriAPI(token='YOUR_API_KEY')
+print(fp.balances())
 ```
 
 ## 🔌 Endpoints included
@@ -34,7 +34,7 @@ print(firi.balances())
 * **/time** Get current timestamp in epoch
 
   ```python
-  firi.time()
+  fp.time()
   ```
 </details>
 
@@ -45,7 +45,7 @@ print(firi.balances())
 * **/v2/history/transactions?count=100000000000000000000**
 
 ```python
-firi.history_transactions()
+fp.history_transactions()
 ```
 </details>
 
@@ -56,7 +56,7 @@ firi.history_transactions()
 * **/v2/history/transactions/{year}**
 
 ```python
-firi.history_transactions_year(year):
+fp.history_transactions_year(year):
 ```
 </details>
 
@@ -67,7 +67,7 @@ firi.history_transactions_year(year):
 * **/v2/history/transactions/{month}/{year}**
 
 ```python
-firi.history_transactions_month_year(month, year):
+fp.history_transactions_month_year(month, year):
 ```
 </details>
 
@@ -78,7 +78,7 @@ firi.history_transactions_month_year(month, year):
 * **/v2/history/trades**
 
 ```python
-firi.history_trades()
+fp.history_trades()
 ```
 </details>
 
@@ -89,7 +89,7 @@ firi.history_trades()
 * **/v2/history/trades/{year}**
 
 ```python
-firi.history_trades_year(year):
+fp.history_trades_year(year):
 ```
 </details>
 
@@ -100,7 +100,7 @@ firi.history_trades_year(year):
 * **/v2/history/trades/{month}/{year}**
 
 ```python
-firi.history_trades_month_year(month, year):
+fp.history_trades_month_year(month, year):
 ```
 </details>
 
@@ -111,7 +111,7 @@ firi.history_trades_month_year(month, year):
 * **/v2/history/orders**
 
 ```python
-firi.history_orders()
+fp.history_orders()
 ```
 </details>
 
@@ -122,7 +122,7 @@ firi.history_orders()
 * **/v2/history/orders/{market}**
 
 ```python
-firi.history_orders_market(market):
+fp.history_orders_market(market):
 ```
 </details>
 
@@ -133,7 +133,7 @@ firi.history_orders_market(market):
 * **/v2/markets/{market}/history**
 
 ```python
-firi.markets_market_history(market):
+fp.markets_market_history(market):
 ```
 </details>
 
@@ -144,7 +144,7 @@ firi.markets_market_history(market):
 * **/v2/markets/{market}/depth**
 
 ```python
-firi.markets_market_depth(market):
+fp.markets_market_depth(market):
 ```
 </details>
 
@@ -155,7 +155,7 @@ firi.markets_market_depth(market):
 * **/v2/markets/{market}**
 
 ```python
-firi.markets_market(market):
+fp.markets_market(market):
 ```
 </details>
 
@@ -166,7 +166,7 @@ firi.markets_market(market):
 * **/v2/markets**
 
 ```python
-firi.markets()
+fp.markets()
 ```
 </details>
 
@@ -177,7 +177,7 @@ firi.markets()
 * **/v2/markets/{market}/ticker**
 
 ```python
-firi.markets_market_ticker(market):
+fp.markets_market_ticker(market):
 ```
 </details>
 
@@ -188,7 +188,7 @@ firi.markets_market_ticker(market):
 * **/v2/markets/tickers**
 
 ```python
-firi.markets_tickers()
+fp.markets_tickers()
 ```
 </details>
 
@@ -199,7 +199,7 @@ firi.markets_tickers()
 * **/v2/XRP/withdraw/pending**
 
 ```python
-firi.xrp_withdraw_pending()
+fp.xrp_withdraw_pending()
 ```
 </details>
 
@@ -210,7 +210,7 @@ firi.xrp_withdraw_pending()
 * **/v2/XRP/address**
 
 ```python
-firi.xrp_withdraw_address()
+fp.xrp_withdraw_address()
 ```
 </details>
 
@@ -221,7 +221,7 @@ firi.xrp_withdraw_address()
 * **/v2/LTC/withdraw/pending**
 
 ```python
-firi.ltc_withdraw_pending()
+fp.ltc_withdraw_pending()
 ```
 </details>
 
@@ -232,7 +232,7 @@ firi.ltc_withdraw_pending()
 * **/v2/LTC/address**
 
 ```python
-firi.ltc_withdraw_address()
+fp.ltc_withdraw_address()
 ```
 </details>
 
@@ -243,7 +243,7 @@ firi.ltc_withdraw_address()
 * **/v2/ETH/withdraw/pending**
 
 ```python
-firi.eth_withdraw_pending()
+fp.eth_withdraw_pending()
 ```
 </details>
 
@@ -254,7 +254,7 @@ firi.eth_withdraw_pending()
 * **/v2/ETH/address**
 
 ```python
-firi.eth_Address()
+fp.eth_Address()
 ```
 </details>
 
@@ -265,7 +265,7 @@ firi.eth_Address()
 * **/v2/DAI/withdraw/pending**
 
 ```python
-firi.dai_withdraw_pending()
+fp.dai_withdraw_pending()
 ```
 </details>
 
@@ -276,7 +276,7 @@ firi.dai_withdraw_pending()
 * **/v2/DAI/address**
 
 ```python
-firi.dai_Address()
+fp.dai_Address()
 ```
 </details>
 
@@ -287,7 +287,7 @@ firi.dai_Address()
 * **/v2/DOT/address**
 
 ```python
-firi.dot_Address()
+fp.dot_Address()
 ```
 </details>
 
@@ -298,7 +298,7 @@ firi.dot_Address()
 * **/v2/DOT/withdraw/pending**
 
 ```python
-firi.dot_withdraw_pending()
+fp.dot_withdraw_pending()
 ```
 </details>
 
@@ -309,7 +309,7 @@ firi.dot_withdraw_pending()
 * **/v2/BTC/withdraw/pending**
 
 ```python
-firi.btc_withdraw_pending()
+fp.btc_withdraw_pending()
 ```
 </details>
 
@@ -320,7 +320,7 @@ firi.btc_withdraw_pending()
 * **/v2/BTC/address**
 
 ```python
-firi.btc_Address()
+fp.btc_Address()
 ```
 </details>
 
@@ -331,7 +331,7 @@ firi.btc_Address()
 * **/v2/ADA/withdraw/pending**
 
 ```python
-firi.ada_withdraw_pending()
+fp.ada_withdraw_pending()
 ```
 </details>
 
@@ -342,7 +342,7 @@ firi.ada_withdraw_pending()
 * **/v2/ADA/address**
 
 ```python
-firi.ada_Address()
+fp.ada_Address()
 ```
 </details>
 
@@ -353,7 +353,7 @@ firi.ada_Address()
 * **/v2/deposit/history?count=1000000**
 
 ```python
-firi.deposit_history()
+fp.deposit_history()
 ```
 </details>
 
@@ -364,7 +364,7 @@ firi.deposit_history()
 * **/v2/deposit/address**
 
 ```python
-firi.deposit_address()
+fp.deposit_address()
 ```
 </details>
 
@@ -375,7 +375,7 @@ firi.deposit_address()
 * **/v2/orders**
 
 ```python
-firi.orders()
+fp.orders()
 ```
 </details>
 
@@ -386,7 +386,7 @@ firi.orders()
 * **/v2/orders/{market}**
 
 ```python
-firi.orders_market(market):
+fp.orders_market(market):
 ```
 </details>
 
@@ -397,7 +397,7 @@ firi.orders_market(market):
 * **/v2/orders/{market}/history**
 
 ```python
-firi.orders_market_history(market):
+fp.orders_market_history(market):
 ```
 </details>
 
@@ -408,7 +408,7 @@ firi.orders_market_history(market):
 * **/v2/orders/history**
 
 ```python
-firi.orders_history()
+fp.orders_history()
 ```
 </details>
 
@@ -419,7 +419,7 @@ firi.orders_history()
 * **/v2/order/{orderID}**
 
 ```python
-firi.order_orderid(orderID):
+fp.order_orderid(orderID):
 ```
 </details>
 
@@ -430,7 +430,7 @@ firi.order_orderid(orderID):
 * **/v2/balances**
 
 ```python
-firi.balances()
+fp.balances()
 ```
 </details>
 
@@ -441,7 +441,7 @@ firi.balances()
 * **/v2/orders**
 
 ```python
-firi.delete_orders()
+fp.delete_orders()
 ```
 </details>
 
@@ -452,7 +452,7 @@ firi.delete_orders()
 * **/v2/orders/{orderID}/{market}/detailed**
 
 ```python
-firi.delete_oders_orderid_market_detailed(orderID, market):
+fp.delete_oders_orderid_market_detailed(orderID, market):
 ```
 </details>
 
@@ -463,7 +463,7 @@ firi.delete_oders_orderid_market_detailed(orderID, market):
 * **/v2/orders/{orderID}/detailed**
 
 ```python
-firi.delete_oders_orderid_detailed(orderID):
+fp.delete_oders_orderid_detailed(orderID):
 ```
 </details>
 
@@ -473,6 +473,6 @@ firi.delete_oders_orderid_detailed(orderID):
 * **/v2/orders/{marketOrMarketID}**
 
 ```python
-firi.delete_orders_marketormarketsid(marketOrMarketID):
+fp.delete_orders_marketormarketsid(marketOrMarketID):
 ```
 </details>
