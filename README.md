@@ -5,7 +5,8 @@
 ![PyPI - Version](https://img.shields.io/pypi/v/firipy)
 ![GitHub](https://img.shields.io/github/license/jeircul/firipy)
 
-Python3 wrapper around the [Firi Trading API (1.0.0)](https://developers.firi.com/)
+Python3 wrapper around the [Firi Trading API (1.0.0)](https://developers.firi.com/)<b></b>
+> :warning: I have **no** affiliation with Firi. Use it at your **own** risk.
 
 ## 📦 Installation
 PyPI
