@@ -1,5 +1,5 @@
 from typing import Dict, Optional
-from requests import Session, Response
+from requests import Session
 from time import sleep
 from requests.exceptions import HTTPError
 
@@ -23,8 +23,10 @@ class FiriAPI:
             response.raise_for_status()
         except HTTPError as http_err:
             print(f'HTTP error occurred: {http_err}')
+            return {"error": str(http_err)}
         except Exception as err:
             print(f'Other error occurred: {err}')
+            return {"error": str(err)}
         else:
             return response.json()
 
