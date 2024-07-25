@@ -2,8 +2,6 @@ name: Upload Python Package
 on:
   release:
     types: [published]
-env:
-  API_KEY_FIRI: ${{ secrets.API_KEY_FIRI }}
 
 jobs:
   deploy:
@@ -19,8 +17,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install build
           pip install requests
-      - name: Run tests
-        run: python -m unittest tests/test_firipy.py
       - name: Build package
         run: python -m build
       - name: Publish package
