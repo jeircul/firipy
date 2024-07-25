@@ -7,7 +7,7 @@
 
 FiriAPI is a Python client for the Firi API.
 
-## Installation
+## 📦 Installation
 
 You can install FiriAPI using pip:
 
@@ -15,7 +15,7 @@ You can install FiriAPI using pip:
 pip install firipy
 ```
 
-## Usage
+## 🚀 Usage
 
 First, import the `FiriAPI` class from the `firipy` module:
 
@@ -50,7 +50,7 @@ balances = client.balances()
 print(balances)
 ```
 
-## Rate Limiting
+## ⏳ Rate Limiting
 
 FiriAPI includes a rate limit, which is the number of seconds to wait between requests.
 By default, this is set to 1 second. You can change this when you initialize the client:
@@ -59,7 +59,7 @@ By default, this is set to 1 second. You can change this when you initialize the
 client = FiriAPI("your-token", rate_limit=2)  # wait 2 seconds between requests
 ```
 
-## Error Handling
+## 🚩 Error Handling
 
 FiriAPI handles HTTP errors using the `requests.Response.raise_for_status` method.
 If a request fails, this method raises a `requests.HTTPError` exception.
@@ -67,11 +67,11 @@ The client catches this exception and prints an error message.
 
 The client also handles other exceptions that might occur during the execution of a request, and prints an error message in these cases.
 
-## Contributing
+## 🔥 Contributing
 
 Contributions to FiriAPI are welcome!
 Please submit a pull request or create an issue on the [GitHub page](https://github.com/jeircul/firipy).
 
-## Disclaimer
+## 📝 Disclaimer
 
 This client was developed by Ove Aursland and is not officially associated with Firi.
