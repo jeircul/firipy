@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "firipy"
-version = "0.0.8"
+version = "0.0.9"
 authors = [
   { name="Ove Aursland", email="jeircul@outlook.com" },
 ]
