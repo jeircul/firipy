@@ -2,6 +2,8 @@ name: Upload Python Package
 on:
   release:
     types: [published]
+env:
+  API_KEY_FIRI: ${{ secrets.API_KEY_FIRI }}
 
 jobs:
   deploy:
