@@ -1,34 +1,137 @@
-from typing import Dict, Optional
-from requests import Session
+from __future__ import annotations
+
+from typing import Any, Dict, Optional
+from requests import Session, Response
 from time import sleep
-from requests.exceptions import HTTPError
+from requests.exceptions import HTTPError, RequestException
+import logging
+import warnings
+
+__all__ = ["FiriAPI", "FiriAPIError", "FiriHTTPError"]
+
+log = logging.getLogger(__name__)
+
+
+class FiriAPIError(Exception):
+    """Base exception for all Firi API client errors."""
+
+
+class FiriHTTPError(FiriAPIError):
+    """Raised when the Firi API returns a non-success HTTP status and raise_on_error=True."""
+
+    def __init__(self, status_code: int, message: str, payload: Any | None = None):
+        super().__init__(f"{status_code}: {message}")
+        self.status_code = status_code
+        self.payload = payload
 
 class FiriAPI:
-    """Client for the Firi API."""
+    """Client for the Firi API.
 
-    def __init__(self, token: str, rate_limit: int = 1):
-        """Initialize the client with the given token and rate limit."""
+    Parameters
+    ----------
+    token : str
+        API access token (miraiex-access-key) for authenticating with Firi.
+    rate_limit : float, default 1.0
+        Seconds to sleep before each request. Set to 0 to disable simple client-side pacing.
+    base_url : str, default "https://api.firi.com"
+        Base URL for the API (override for testing / mocking).
+    timeout : float, default 10.0
+        Per-request timeout in seconds passed to `requests`.
+    raise_on_error : bool, default True
+        If True, non-2xx responses raise :class:`FiriHTTPError`. If False, returns a dict
+        with keys: ``{"error": str, "status": int}``.
+    """
+
+    DEFAULT_COUNT: int = 500
+    MAX_COUNT: int = 10_000
+
+    def __init__(
+        self,
+        token: str,
+        *,
+        rate_limit: float = 1.0,
+        base_url: str = "https://api.firi.com",
+        timeout: float = 10.0,
+        raise_on_error: bool = True,
+        session: Session | None = None,
+    ):
         headers = {"miraiex-access-key": token}
-        self.apiurl = "https://api.firi.com"
-        self.session = Session()
+        self.apiurl = base_url.rstrip("/")
+        self.session = session or Session()
         self.session.headers.update(headers)
         self.rate_limit = rate_limit
+        self.timeout = timeout
+        self.raise_on_error = raise_on_error
+        self._token = token  # stored for potential future refresh; do not expose directly
+
+    # --- Context manager support -------------------------------------------------
+    def __enter__(self) -> "FiriAPI":  # pragma: no cover (trivial)
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:  # pragma: no cover (trivial)
+        self.close()
+
+    def close(self):  # pragma: no cover (simple)
+        """Close the underlying requests session."""
+        try:
+            self.session.close()
+        except Exception:  # defensive
+            pass
+
+    # --- Representation ----------------------------------------------------------
+    def __repr__(self) -> str:  # pragma: no cover (cosmetic)
+        return (
+            f"FiriAPI(base_url='{self.apiurl}', rate_limit={self.rate_limit}, "
+            f"timeout={self.timeout}, raise_on_error={self.raise_on_error}, token='***')"
+        )
 
     def _request(self, method: str, endpoint: str, **kwargs) -> Dict:
-        """Send a request to the given endpoint and return the response as JSON."""
-        sleep(self.rate_limit)  # simple rate limiting
+        """Send an HTTP request and return parsed JSON.
+
+        Returns
+        -------
+        dict | list | Any
+            Parsed JSON body. If ``raise_on_error`` is False and an HTTP error occurs,
+            a dict with keys ``error`` and ``status`` is returned.
+        """
+        if self.rate_limit > 0:
+            sleep(self.rate_limit)
         url = self.apiurl + endpoint
         try:
-            response = self.session.request(method, url, **kwargs)
+            response: Response = self.session.request(method, url, timeout=self.timeout, **kwargs)
             response.raise_for_status()
         except HTTPError as http_err:
-            print(f'HTTP error occurred: {http_err}')
-            return {"error": str(http_err)}
-        except Exception as err:
-            print(f'Other error occurred: {err}')
-            return {"error": str(err)}
+            status_code = getattr(http_err.response, "status_code", None)
+            payload: Any | None = None
+            try:
+                if http_err.response is not None:
+                    payload = http_err.response.json()
+            except Exception:  # pragma: no cover - robustness
+                payload = None
+            message = None
+            if isinstance(payload, dict):
+                message = payload.get("message") or payload.get("error")
+            if not message:
+                message = str(http_err)
+            if self.raise_on_error:
+                raise FiriHTTPError(status_code or -1, message, payload)
+            log.warning("HTTP error (%s) for %s %s: %s", status_code, method, url, message)
+            return {"error": message, "status": status_code}
+        except RequestException as err:
+            if self.raise_on_error:
+                raise FiriAPIError(str(err)) from err
+            log.error("Request error for %s %s: %s", method, url, err)
+            return {"error": str(err), "status": None}
+        except Exception as err:  # pragma: no cover - unexpected defensive
+            if self.raise_on_error:
+                raise FiriAPIError(str(err)) from err
+            log.exception("Unexpected error during request")
+            return {"error": str(err), "status": None}
         else:
-            return response.json()
+            try:
+                return response.json()
+            except ValueError:  # pragma: no cover - unlikely
+                return {"error": "Invalid JSON in response", "status": response.status_code}
 
     def get(self, endpoint: str, **kwargs) -> Dict:
         """Send a GET request to the given endpoint."""
@@ -46,8 +149,23 @@ class FiriAPI:
         """Get the current time from the Firi API."""
         return self.get("/time")
 
-    def history_transactions(self, count: int = 100000000000000000000) -> Dict:
-        """Get history over all transactions."""
+    def history_transactions(self, count: Optional[int] = None) -> Dict:
+        """Get history over all transactions.
+
+        Parameters
+        ----------
+        count : int | None
+            Number of records to request. If None, uses DEFAULT_COUNT. A warning is emitted if
+            the provided count exceeds MAX_COUNT.
+        """
+        if count is None:
+            count = self.DEFAULT_COUNT
+        elif count > self.MAX_COUNT:
+            warnings.warn(
+                f"Requested count {count} exceeds MAX_COUNT {self.MAX_COUNT}; proceeding but this may be rejected by the API.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
         return self.get("/v2/history/transactions", params={"count": count})
 
     def history_transactions_year(self, year: str) -> Dict:
@@ -122,21 +240,34 @@ class FiriAPI:
         """Get a user's pending ETH withdraws."""
         return self.get("/v2/ETH/withdraw/pending")
 
-    def eth_Address(self) -> Dict:
+    # --- Asset address endpoints (normalized names) ------------------------------
+    def eth_address(self) -> Dict:
         """Get a user's ETH address."""
         return self.get("/v2/ETH/address")
+
+    def eth_Address(self) -> Dict:  # backwards compatibility
+        warnings.warn("eth_Address is deprecated; use eth_address", DeprecationWarning, stacklevel=2)
+        return self.eth_address()
 
     def dai_withdraw_pending(self) -> Dict:
         """Get a user's pending DAI withdraws."""
         return self.get("/v2/DAI/withdraw/pending")
 
-    def dai_Address(self) -> Dict:
+    def dai_address(self) -> Dict:
         """Get a user's DAI address."""
         return self.get("/v2/DAI/address")
 
-    def dot_Address(self) -> Dict:
+    def dai_Address(self) -> Dict:  # deprecated
+        warnings.warn("dai_Address is deprecated; use dai_address", DeprecationWarning, stacklevel=2)
+        return self.dai_address()
+
+    def dot_address(self) -> Dict:
         """Get a user's DOT address."""
         return self.get("/v2/DOT/address")
+
+    def dot_Address(self) -> Dict:
+        warnings.warn("dot_Address is deprecated; use dot_address", DeprecationWarning, stacklevel=2)
+        return self.dot_address()
 
     def dot_withdraw_pending(self) -> Dict:
         """Get a user's pending DOT withdraws."""
@@ -146,20 +277,39 @@ class FiriAPI:
         """Get a user's pending BTC withdraws."""
         return self.get("/v2/BTC/withdraw/pending")
 
-    def btc_Address(self) -> Dict:
+    def btc_address(self) -> Dict:
         """Get a user's BTC address."""
         return self.get("/v2/BTC/address")
+
+    def btc_Address(self) -> Dict:
+        warnings.warn("btc_Address is deprecated; use btc_address", DeprecationWarning, stacklevel=2)
+        return self.btc_address()
 
     def ada_withdraw_pending(self) -> Dict:
         """Get a user's pending ADA withdraws."""
         return self.get("/v2/ADA/withdraw/pending")
 
-    def ada_Address(self) -> Dict:
+    def ada_address(self) -> Dict:
         """Get a user's ADA address."""
         return self.get("/v2/ADA/address")
 
-    def deposit_history(self, count: int = 1000000) -> Dict:
-        """Get a user's history over deposits."""
+    def ada_Address(self) -> Dict:
+        warnings.warn("ada_Address is deprecated; use ada_address", DeprecationWarning, stacklevel=2)
+        return self.ada_address()
+
+    def deposit_history(self, count: Optional[int] = None) -> Dict:
+        """Get a user's history over deposits.
+
+        Uses DEFAULT_COUNT if count is not provided and warns if exceeding MAX_COUNT.
+        """
+        if count is None:
+            count = self.DEFAULT_COUNT
+        elif count > self.MAX_COUNT:
+            warnings.warn(
+                f"Requested count {count} exceeds MAX_COUNT {self.MAX_COUNT}; proceeding but this may be rejected by the API.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
         return self.get("/v2/deposit/history", params={"count": count})
 
     def deposit_address(self) -> Dict:
@@ -199,8 +349,20 @@ class FiriAPI:
         return self.delete(f"/v2/orders/{orderID}/detailed")
 
     def delete_orders_marketormarketsid(self, marketOrMarketID: str) -> Dict:
-        """Delete your orders by market."""
-        return self.delete(f"/v2/orders/{marketOrMarketID}")
+        """Delete your orders by market.
+
+        Deprecated naming retained for backward compatibility; prefer :meth:`delete_orders_for_market`.
+        """
+        warnings.warn(
+            "delete_orders_marketormarketsid is deprecated; use delete_orders_for_market",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.delete_orders_for_market(marketOrMarketID)
+
+    def delete_orders_for_market(self, market_or_market_id: str) -> Dict:
+        """Delete your orders by market (preferred name)."""
+        return self.delete(f"/v2/orders/{market_or_market_id}")
 
     def balances(self) -> Dict:
         """Check the balance for your wallets."""

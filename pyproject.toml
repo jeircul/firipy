@@ -4,22 +4,44 @@ build-backend = "hatchling.build"
 
 [project]
 name = "firipy"
-version = "0.0.9"
+version = "0.1.0"
 authors = [
   { name="Ove Aursland", email="jeircul@outlook.com" },
 ]
 description = "Firipy is a Python wrapper for the Firi API. It provides a simple and intuitive way to interact with the Firi cryptocurrency exchange, allowing users to retrieve market data, manage orders, and more. With Firipy, you can easily integrate Firi's features into your Python applications."
 readme = "README.md"
-requires-python = ">=3.7"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+keywords = ["firi", "crypto", "exchange", "api", "trading"]
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "requests",
+    "requests>=2.31,<3",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=7",
+  "pytest-cov>=4",
+  "mypy>=1.8",
+  "ruff>=0.2.0",
+  "types-requests",
+  "build>=1.2.0",
+  "twine>=5.0.0",
 ]
 
 [project.urls]
 "Homepage" = "https://github.com/jeircul/firipy"
 "Bug Tracker" = "https://github.com/jeircul/firipy/issues"
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+markers = [
+  "integration: marks tests that call the live Firi API (requires LIVE_FIRI_TESTS=1 and API_KEY_FIRI)"
+]
+filterwarnings = [
+  "default::DeprecationWarning",
+]
