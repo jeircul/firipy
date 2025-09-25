@@ -4,6 +4,33 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres (loosely) to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+ 
+- Optional query parameters across history/markets/orders/deposit endpoints (`direction`, `type`, `count`, `bids`, `asks`, `before`).
+- Generic coin helpers: `coin_address(symbol)`, `coin_withdraw_pending(symbol)`.
+- Concise order helpers: `order(order_id)`, `delete_order_detailed(order_id, market=None)`.
+
+### Changed
+ 
+- Existing per-asset address / withdraw methods now delegate to generic helpers (no behavior change).
+- Added input validation for certain integer and enum-like parameters with clear error messages.
+
+### Deprecated
+ 
+- `history_trades`, `history_trades_year`, `history_trades_month_year` (not present in public docs) – slated for removal in a future minor release unless re-documented.
+- Verbose deletion methods: `delete_orders_orderid_market_detailed`, `delete_orders_orderid_detailed` – use `delete_order_detailed`.
+
+### Documentation
+ 
+- README updated with extended endpoint table, optional parameter descriptions, deprecation table, and generic coin helper usage.
+
+### Tests
+ 
+- Added coverage for new optional parameters, deprecation warnings, and generic coin helpers.
+
+
 ## [0.1.0] - 2025-09-25
 
 ### Added

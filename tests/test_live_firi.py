@@ -29,7 +29,7 @@ def test_live_basic_read_only_endpoints():
     assert isinstance(balances, (list, dict))
 
     # Transaction history limited count
-    tx = client.history_transactions(5)
+    tx = client.history_transactions(count=5)
     assert isinstance(tx, (list, dict))
 
     client.close()

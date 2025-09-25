@@ -96,20 +96,54 @@ Legacy camelCase address methods (e.g. `eth_Address`) are deprecated—use `eth_
 
 ## 📡 Endpoint Overview (selection)
 
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| `time()` | `/time` | Server time |
-| `markets()` | `/v2/markets` | List markets |
-| `markets_market(m)` | `/v2/markets/{m}` | Market details |
-| `markets_market_depth(m)` | `/v2/markets/{m}/depth` | Order book |
-| `markets_market_history(m)` | `/v2/markets/{m}/history` | Market history |
-| `balances()` | `/v2/balances` | Wallet balances |
-| `history_transactions(count=None)` | `/v2/history/transactions` | Transactions history |
-| `deposit_history(count=None)` | `/v2/deposit/history` | Deposit history |
-| `post_orders(market, type, price, amount)` | `/v2/orders` | Create order |
-| `delete_orders()` | `/v2/orders` | Cancel all orders |
+| Method | Endpoint | Purpose | Key Optional Params |
+|--------|----------|---------|---------------------|
+| `time()` | `/time` | Server time | – |
+| `markets()` | `/v2/markets` | List markets | – |
+| `markets_market(m)` | `/v2/markets/{m}` | Market details | – |
+| `markets_market_depth(m, bids=None, asks=None)` | `/v2/markets/{m}/depth` | Order book | `bids`, `asks` |
+| `markets_market_history(m, count=None)` | `/v2/markets/{m}/history` | Market trade history | `count` |
+| `markets_market_ticker(m)` | `/v2/markets/{m}/ticker` | Single ticker | – |
+| `markets_tickers()` | `/v2/markets/tickers` | All tickers | – |
+| `balances()` | `/v2/balances` | Wallet balances | – |
+| `history_transactions(count=None, direction=None)` | `/v2/history/transactions` | Transactions history | `count`, `direction` (`start`/`end`) |
+| `history_orders(type=None, count=None)` | `/v2/history/orders` | Orders history | `type`, `count` |
+| `deposit_history(count=None, before=None)` | `/v2/deposit/history` | Deposit history | `count`, `before` |
+| `orders()` | `/v2/orders` | Active orders | – |
+| `orders_market(m, count=None)` | `/v2/orders/{m}` | Active orders (market) | `count` |
+| `orders_market_history(m, count=None)` | `/v2/orders/{m}/history` | Closed orders (market) | `count` |
+| `orders_history(count=None)` | `/v2/orders/history` | Closed orders | `count` |
+| `order(order_id)` | `/v2/order/{id}` | Get order | – |
+| `post_orders(market, type, price, amount)` | `/v2/orders` | Create order | – |
+| `delete_orders()` | `/v2/orders` | Cancel all orders | – |
+| `delete_order_detailed(order_id, market=None)` | `/v2/orders/{id}/detailed` | Cancel order + matched amt | `market` |
+| `coin_address(symbol)` | `/v2/{symbol}/address` | Coin deposit address | `symbol` (e.g. BTC) |
+| `coin_withdraw_pending(symbol)` | `/v2/{symbol}/withdraw/pending` | Pending withdrawals | `symbol` |
 
-Defaults like `count` are limited to a safe value (500) unless explicitly overridden.
+Defaults like `count` fall back to 500 (internal `DEFAULT_COUNT`) when omitted. A warning is emitted if you go above the internal `MAX_COUNT` (10,000) so you can reconsider the request size.
+
+### Deprecated Methods
+
+| Deprecated | Replacement | Notes |
+|------------|-------------|-------|
+| `eth_Address`, `dai_Address`, `dot_Address`, `btc_Address`, `ada_Address` | snake_case variants | Legacy camelCase kept temporarily |
+| `delete_orders_orderid_market_detailed` | `delete_order_detailed(order_id, market=...)` | Shorter, clearer |
+| `delete_orders_orderid_detailed` | `delete_order_detailed(order_id)` | Shorter, clearer |
+| `delete_orders_marketormarketsid` | `delete_orders_for_market` | Better naming |
+| `history_trades*` | (pending removal) | Not present in current public docs |
+
+All deprecated methods emit `DeprecationWarning` and will be removed in a future minor release (track the CHANGELOG for timelines).
+
+### Generic Coin Helpers
+
+Instead of calling `btc_address()`, `eth_address()`, etc. directly you can write:
+
+```python
+client.coin_address("BTC")
+client.coin_withdraw_pending("ETH")
+```
+
+Concrete per-asset helpers remain for convenience.
 
 ## 🔥 Contributing
 
