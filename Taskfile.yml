@@ -1,0 +1,83 @@
+version: '3'
+
+vars:
+  PYTHON: .venv/bin/python
+  PIP: .venv/bin/python -m pip
+  PACKAGE: firipy
+  DIST_DIR: dist
+
+silent: false
+
+tasks:
+  venv:
+    desc: Create virtual environment
+    cmds:
+      - test -d .venv || python3 -m venv .venv
+      - '{{.PIP}} install --upgrade pip'
+
+  install:
+    desc: Install project with dev extras
+    deps: [venv]
+    cmds:
+      - '{{.PIP}} install -e .[dev]'
+
+  lint:
+    desc: Run ruff lint checks
+    cmds:
+      - '{{.PYTHON}} -m ruff check .'
+
+  format:
+    desc: Auto-format with ruff (imports & style)
+    cmds:
+      - '{{.PYTHON}} -m ruff check --select I --fix .'
+      - '{{.PYTHON}} -m ruff format .'
+
+  typecheck:
+    desc: Run mypy static type checking
+    cmds:
+      - '{{.PYTHON}} -m mypy {{.PACKAGE}}'
+
+  test:
+    desc: Run test suite
+    cmds:
+      - '{{.PYTHON}} -m pytest -q'
+
+  coverage:
+    desc: Run tests with coverage report
+    cmds:
+      - '{{.PYTHON}} -m pytest --cov={{.PACKAGE}} --cov-report=term-missing'
+
+  build:
+    desc: Build sdist and wheel
+    cmds:
+      - 'rm -rf {{.DIST_DIR}}'
+      - '{{.PYTHON}} -m build'
+
+  clean:
+    desc: Remove build artifacts & caches
+    cmds:
+      - 'rm -rf {{.DIST_DIR}} *.egg-info .mypy_cache .pytest_cache .ruff_cache'
+      - 'find {{.PACKAGE}} -name __pycache__ -type d -exec rm -rf {} +'
+
+  release-check:
+    desc: Run full validation pipeline (lint, typecheck, coverage, build)
+    cmds:
+      - task: lint
+      - task: typecheck
+      - task: coverage
+      - task: build
+
+  all:
+    desc: Install, lint, typecheck, test
+    cmds:
+      - task: install
+      - task: lint
+      - task: typecheck
+      - task: test
+
+  live-test:
+    desc: Run live integration tests (requires API_KEY_FIRI and LIVE_FIRI_TESTS=1)
+    cmds:
+      - 'test -n "${API_KEY_FIRI}" || (echo "API_KEY_FIRI not set" && exit 1)'
+      - 'test "${LIVE_FIRI_TESTS}" = "1" || (echo "Set LIVE_FIRI_TESTS=1 to enable live tests" && exit 1)'
+      - '{{.PYTHON}} -m pytest -q tests/test_live_firi.py'
