@@ -1,5 +1,6 @@
 import os
 import warnings
+
 import pytest
 
 from firipy import FiriAPI, FiriHTTPError
@@ -8,7 +9,8 @@ API_KEY = os.getenv("API_KEY_FIRI")
 LIVE = os.getenv("LIVE_FIRI_TESTS") == "1"
 
 pytestmark = pytest.mark.skipif(
-    not (LIVE and API_KEY), reason="Set LIVE_FIRI_TESTS=1 and API_KEY_FIRI to run live Firi API tests"
+    not (LIVE and API_KEY),
+    reason="Set LIVE_FIRI_TESTS=1 and API_KEY_FIRI to run live Firi API tests",
 )
 
 

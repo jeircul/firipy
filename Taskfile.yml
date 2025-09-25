@@ -12,7 +12,7 @@ tasks:
   venv:
     desc: Create virtual environment
     cmds:
-      - test -d .venv || python -m venv .venv
+      - test -d .venv || python3 -m venv .venv
       - '{{.PIP}} install --upgrade pip'
 
   install:
