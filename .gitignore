@@ -1,2 +1,23 @@
-__pycache__
-.venv
+# Virtual environments
+.venv/
+env/
+venv/
+
+# Python cache / build artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+coverage.xml
+.coverage
+
+# IDE / editor
+.idea/
+.vscode/
+
+# macOS noise
+.DS_Store
