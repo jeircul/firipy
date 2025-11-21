@@ -1,3 +1,5 @@
+"""Live integration tests that hit the real Firi API via ``pytest``."""
+
 import os
 import warnings
 
@@ -5,17 +7,20 @@ import pytest
 
 from firipy import FiriAPI, FiriHTTPError
 
-API_KEY = os.getenv("API_KEY_FIRI")
-LIVE = os.getenv("LIVE_FIRI_TESTS") == "1"
+API_KEY: str | None = os.getenv("API_KEY_FIRI")
+LIVE: bool = os.getenv("LIVE_FIRI_TESTS") == "1"
 
 pytestmark = pytest.mark.skipif(
     not (LIVE and API_KEY),
-    reason="Set LIVE_FIRI_TESTS=1 and API_KEY_FIRI to run live Firi API tests",
+    reason=(
+        "Set LIVE_FIRI_TESTS=1 and API_KEY_FIRI to run live Firi API tests"
+    ),
 )
 
 
 @pytest.mark.integration
-def test_live_basic_read_only_endpoints():
+def test_live_basic_read_only_endpoints() -> None:
+    """Exercise key read-only endpoints against the live API."""
     assert API_KEY is not None  # for type checker
     client = FiriAPI(API_KEY, rate_limit=0.3, raise_on_error=True)
     # Time endpoint
@@ -38,7 +43,8 @@ def test_live_basic_read_only_endpoints():
 
 
 @pytest.mark.integration
-def test_live_error_handling_raise():
+def test_live_error_handling_raise() -> None:
+    """Validate that raise_on_error propagates live HTTP failures."""
     assert API_KEY is not None
     client = FiriAPI(API_KEY, raise_on_error=True)
     with pytest.raises(FiriHTTPError):
@@ -47,7 +53,8 @@ def test_live_error_handling_raise():
 
 
 @pytest.mark.integration
-def test_live_error_handling_suppressed():
+def test_live_error_handling_suppressed() -> None:
+    """Ensure raise_on_error=False surfaces structured error responses."""
     assert API_KEY is not None
     client = FiriAPI(API_KEY, raise_on_error=False)
     data = client.get("/this/endpoint/does/not/exist")
@@ -55,7 +62,8 @@ def test_live_error_handling_suppressed():
 
 
 @pytest.mark.integration
-def test_live_deprecated_method_warning():
+def test_live_deprecated_method_warning() -> None:
+    """Confirm deprecated helpers issue warnings against the live API."""
     assert API_KEY is not None
     client = FiriAPI(API_KEY, raise_on_error=False)
     with warnings.catch_warnings(record=True) as w:

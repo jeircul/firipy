@@ -5,7 +5,7 @@
 ![PyPI - Version](https://img.shields.io/pypi/v/firipy)
 ![GitHub](https://img.shields.io/github/license/jeircul/firipy)
 
-Firipy is a Python client for the Firi API.
+Firipy is a ⚡ Python client for the Firi API.
 
 ## 📦 Installation
 
@@ -92,8 +92,6 @@ if "error" in data:
 
 Error dict shape: `{ "error": str, "status": int | None }`.
 
-Legacy camelCase address methods (e.g. `eth_Address`) are deprecated—use `eth_address`. They emit a `DeprecationWarning` and will be removed in a future release.
-
 ## 📡 Endpoint Overview (selection)
 
 | Method | Endpoint | Purpose | Key Optional Params |
@@ -107,8 +105,12 @@ Legacy camelCase address methods (e.g. `eth_Address`) are deprecated—use `eth_
 | `markets_tickers()` | `/v2/markets/tickers` | All tickers | – |
 | `balances()` | `/v2/balances` | Wallet balances | – |
 | `history_transactions(count=None, direction=None)` | `/v2/history/transactions` | Transactions history | `count`, `direction` (`start`/`end`) |
+| `history_transactions_year(year, direction=None)` | `/v2/history/transactions/{year}` | Transactions history (year) | `direction` |
+| `history_transactions_month_year(month, year, direction=None)` | `/v2/history/transactions/{month}/{year}` | Transactions history (month+year) | `direction` |
 | `history_orders(type=None, count=None)` | `/v2/history/orders` | Orders history | `type`, `count` |
+| `history_orders_market(m, type=None, count=None)` | `/v2/history/orders/{m}` | Orders history (market) | `type`, `count` |
 | `deposit_history(count=None, before=None)` | `/v2/deposit/history` | Deposit history | `count`, `before` |
+| `deposit_address()` | `/v2/deposit/address` | Multi-coin deposit info | – |
 | `orders()` | `/v2/orders` | Active orders | – |
 | `orders_market(m, count=None)` | `/v2/orders/{m}` | Active orders (market) | `count` |
 | `orders_market_history(m, count=None)` | `/v2/orders/{m}/history` | Closed orders (market) | `count` |
@@ -116,23 +118,18 @@ Legacy camelCase address methods (e.g. `eth_Address`) are deprecated—use `eth_
 | `order(order_id)` | `/v2/order/{id}` | Get order | – |
 | `post_orders(market, type, price, amount)` | `/v2/orders` | Create order | – |
 | `delete_orders()` | `/v2/orders` | Cancel all orders | – |
+| `delete_orders_for_market(market)` | `/v2/orders/{market}` | Cancel orders for market | – |
 | `delete_order_detailed(order_id, market=None)` | `/v2/orders/{id}/detailed` | Cancel order + matched amt | `market` |
 | `coin_address(symbol)` | `/v2/{symbol}/address` | Coin deposit address | `symbol` (e.g. BTC) |
 | `coin_withdraw_pending(symbol)` | `/v2/{symbol}/withdraw/pending` | Pending withdrawals | `symbol` |
 
 Defaults like `count` fall back to 500 (internal `DEFAULT_COUNT`) when omitted. A warning is emitted if you go above the internal `MAX_COUNT` (10,000) so you can reconsider the request size.
 
-### Deprecated Methods
+## 🔗 Official Docs Sync
 
-| Deprecated | Replacement | Notes |
-|------------|-------------|-------|
-| `eth_Address`, `dai_Address`, `dot_Address`, `btc_Address`, `ada_Address` | snake_case variants | Legacy camelCase kept temporarily |
-| `delete_orders_orderid_market_detailed` | `delete_order_detailed(order_id, market=...)` | Shorter, clearer |
-| `delete_orders_orderid_detailed` | `delete_order_detailed(order_id)` | Shorter, clearer |
-| `delete_orders_marketormarketsid` | `delete_orders_for_market` | Better naming |
-| `history_trades*` | (pending removal) | Not present in current public docs |
-
-All deprecated methods emit `DeprecationWarning` and will be removed in a future minor release (track the CHANGELOG for timelines).
+- Checked against [developers.firi.com](https://developers.firi.com/) (Trading API 1.0.0) on **2025-11-21** so every method above maps to a documented endpoint under Time, Market, History, Coin, Deposit, Order, and Balance.
+- When Firi updates their spec, diff it against the table above plus the client methods to keep things in lockstep.
+- Use the rate-limit guardrails (`DEFAULT_COUNT`, `MAX_COUNT`) to stay within the constraints noted in the public docs.
 
 ### Generic Coin Helpers
 
@@ -149,7 +146,7 @@ Concrete per-asset helpers remain for convenience.
 
 Contributions to Firipy are welcome! Please submit a pull request or create an issue on the [GitHub page](https://github.com/jeircul/firipy).
 
-### Development Setup
+### 🧪 Development Setup
 
 ```bash
 git clone https://github.com/jeircul/firipy
@@ -167,18 +164,35 @@ ruff check .
 mypy firipy
 ```
 
-### Using go-task (optional)
+### 🛠️ go-task shortcuts (optional)
 
-If you have [go-task](https://taskfile.dev) installed you can automate workflows:
+If you have [go-task](https://taskfile.dev) installed you can automate the usual workflows:
 
 ```bash
-task install       # create venv & install deps
-task lint          # ruff checks
-task typecheck     # mypy
-task test          # run tests
-task coverage      # coverage report
-task release-check # lint + typecheck + coverage + build
+task install        # ensure venv + install dev extras
+task lint           # ruff checks
+task typecheck      # mypy
+task test           # unit tests
+task qa             # lint + typecheck + test
+task balance        # print live balances (API_KEY_FIRI required)
+task live-test      # read-only smoke against production (LIVE_FIRI_TESTS=1)
+task build          # sdist + wheel
+task release-check  # qa + build
+# Version bump helpers (patch by default)
+task version PART=minor
+task version NEW=0.1.1
+task version DRY_RUN=1
 ```
+
+### Release workflow
+
+1. Make sure `CHANGELOG.md` has everything for the upcoming release under the `Unreleased` section.
+2. Run `task version PART=patch` (set `PART` or `NEW=x.y.z`). This updates `pyproject.toml` and moves the changelog entries into a dated section. Use `DRY_RUN=1` first if you want to preview.
+3. Execute `task release-check` to rerun lint, type-check, tests, and the build.
+4. Commit the version bump, push to `dev`, open a PR into `main`, and merge once CI is green.
+5. Tag `vX.Y.Z` on `main` (or draft a GitHub Release). Publishing the release triggers the `publish.yml` workflow to upload to PyPI.
+6. Optionally run `task live-test` with `LIVE_FIRI_TESTS=1 API_KEY_FIRI=...` before tagging to double-check against production.
+7. Need a quick manual sanity check? `task balance` prints the raw payload returned by `/v2/balances` using your configured `API_KEY_FIRI`.
 
 ## 📝 Disclaimer
 
