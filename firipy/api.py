@@ -1,3 +1,5 @@
+"""Firi API client built on ``requests.Session`` for HTTP requests."""
+
 from __future__ import annotations
 
 import logging
@@ -18,9 +20,14 @@ class FiriAPIError(Exception):
 
 
 class FiriHTTPError(FiriAPIError):
-    """Raised when the Firi API returns a non-success HTTP status and raise_on_error=True."""
+    """Raised when ``raise_on_error`` handles non-success HTTP responses."""
 
-    def __init__(self, status_code: int, message: str, payload: Any | None = None):
+    def __init__(
+        self,
+        status_code: int,
+        message: str,
+        payload: Any | None = None,
+    ):
         super().__init__(f"{status_code}: {message}")
         self.status_code = status_code
         self.payload = payload
@@ -34,14 +41,15 @@ class FiriAPI:
     token : str
         API access token (miraiex-access-key) for authenticating with Firi.
     rate_limit : float, default 1.0
-        Seconds to sleep before each request. Set to 0 to disable simple client-side pacing.
+        Seconds to sleep before each request. Set to 0 to disable simple
+        client-side pacing.
     base_url : str, default "https://api.firi.com"
         Base URL for the API (override for testing / mocking).
     timeout : float, default 10.0
         Per-request timeout in seconds passed to `requests`.
     raise_on_error : bool, default True
-        If True, non-2xx responses raise :class:`FiriHTTPError`. If False, returns a dict
-        with keys: ``{"error": str, "status": int}``.
+        If True, non-2xx responses raise :class:`FiriHTTPError`. If False,
+        returns a dict with keys ``{"error": str, "status": int}``.
     """
 
     DEFAULT_COUNT: int = 500
@@ -64,29 +72,32 @@ class FiriAPI:
         self.rate_limit = rate_limit
         self.timeout = timeout
         self.raise_on_error = raise_on_error
-        self._token = (
-            token  # stored for potential future refresh; do not expose directly
-        )
+        self._token = token  # stored for potential refresh; kept private
 
-    # --- Context manager support -------------------------------------------------
-    def __enter__(self) -> "FiriAPI":  # pragma: no cover (trivial)
+    # --- Context manager helpers -------------------------------------------
+    def __enter__(self) -> "FiriAPI":  # pragma: no cover
+        """Enter context by returning the current client."""
         return self
 
-    def __exit__(self, exc_type, exc, tb) -> None:  # pragma: no cover (trivial)
+    def __exit__(self, exc_type, exc, tb) -> None:  # pragma: no cover
+        """Exit context by closing the underlying session."""
         self.close()
 
-    def close(self):  # pragma: no cover (simple)
+    def close(self) -> None:  # pragma: no cover (simple)
         """Close the underlying requests session."""
         try:
             self.session.close()
         except Exception:  # defensive
             pass
 
-    # --- Representation ----------------------------------------------------------
-    def __repr__(self) -> str:  # pragma: no cover (cosmetic)
+    # --- Representation ----------------------------------------------------
+    def __repr__(self) -> str:  # pragma: no cover
         return (
-            f"FiriAPI(base_url='{self.apiurl}', rate_limit={self.rate_limit}, "
-            f"timeout={self.timeout}, raise_on_error={self.raise_on_error}, token='***')"
+            "FiriAPI("
+            f"base_url='{self.apiurl}', "
+            f"rate_limit={self.rate_limit}, "
+            f"timeout={self.timeout}, "
+            f"raise_on_error={self.raise_on_error}, token='***')"
         )
 
     def _request(self, method: str, endpoint: str, **kwargs) -> Dict:
@@ -95,8 +106,9 @@ class FiriAPI:
         Returns
         -------
         dict | list | Any
-            Parsed JSON body. If ``raise_on_error`` is False and an HTTP error occurs,
-            a dict with keys ``error`` and ``status`` is returned.
+            Parsed JSON body. If ``raise_on_error`` is False and an HTTP
+            error occurs, a dict with keys ``error`` and ``status`` is
+            returned.
         """
         if self.rate_limit > 0:
             sleep(self.rate_limit)
@@ -122,7 +134,11 @@ class FiriAPI:
             if self.raise_on_error:
                 raise FiriHTTPError(status_code or -1, message, payload)
             log.warning(
-                "HTTP error (%s) for %s %s: %s", status_code, method, url, message
+                "HTTP error (%s) for %s %s: %s",
+                status_code,
+                method,
+                url,
+                message,
             )
             return {"error": message, "status": status_code}
         except RequestException as err:
@@ -156,14 +172,18 @@ class FiriAPI:
         """Send a POST request to the given endpoint."""
         return self._request("POST", endpoint, json=data)
 
-    # --- Internal helpers -------------------------------------------------------
+    # --- Internal helpers --------------------------------------------------
     def _validate_choice(
         self, name: str, value: Optional[str], choices: Iterable[str]
     ) -> Optional[str]:
+        """Ensure provided values stay within the allowed choices."""
         if value is None:
             return None
-        if value not in choices:
-            raise ValueError(f"{name} must be one of {sorted(choices)} (got {value!r})")
+        ordered_choices = sorted(choices)
+        if value not in ordered_choices:
+            raise ValueError(
+                f"{name} must be one of {ordered_choices} (got {value!r})"
+            )
         return value
 
     def _validate_int(
@@ -174,13 +194,17 @@ class FiriAPI:
         minimum: int = 1,
         maximum: Optional[int] = None,
     ) -> Optional[int]:
+        """Validate integer bounds while allowing optional input."""
         if value is None:
             return None
         if value < minimum:
             raise ValueError(f"{name} must be >= {minimum} (got {value})")
         if maximum is not None and value > maximum:
             warnings.warn(
-                f"Requested {name} {value} exceeds maximum {maximum}; proceeding but the API may reject it.",
+                (
+                    f"Requested {name} {value} exceeds maximum {maximum}; "
+                    "proceeding but the API may reject it."
+                ),
                 RuntimeWarning,
                 stacklevel=3,
             )
@@ -198,7 +222,8 @@ class FiriAPI:
         Parameters
         ----------
         count : int | None
-            Number of records to request. Defaults to DEFAULT_COUNT when omitted.
+            Number of records to request. Defaults to DEFAULT_COUNT when
+            omitted.
         direction : {'start', 'end'} | None
             Pagination direction as documented by the API.
         """
@@ -218,7 +243,9 @@ class FiriAPI:
         params: Dict[str, Any] = {}
         if self._validate_choice("direction", direction, {"start", "end"}):
             params["direction"] = direction  # type: ignore[assignment]
-        return self.get(f"/v2/history/transactions/{year}", params=params or None)
+        return self.get(
+            f"/v2/history/transactions/{year}", params=params or None
+        )
 
     def history_transactions_month_year(
         self, month: str, year: str, *, direction: Optional[str] = None
@@ -230,37 +257,6 @@ class FiriAPI:
         return self.get(
             f"/v2/history/transactions/{month}/{year}", params=params or None
         )
-
-    def history_trades(self) -> Dict:
-        """Get history over all trades.
-
-        DEPRECATED: This endpoint is not present in current public documentation and will
-        be removed in a future release unless the API re-documents it.
-        """
-        warnings.warn(
-            "history_trades is deprecated and may be removed in a future version.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.get("/v2/history/trades")
-
-    def history_trades_year(self, year: str) -> Dict:
-        """Get history over trades by year (deprecated)."""
-        warnings.warn(
-            "history_trades_year is deprecated and may be removed in a future version.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.get(f"/v2/history/trades/{year}")
-
-    def history_trades_month_year(self, month: str, year: str) -> Dict:
-        """Get history over trades by month and year (deprecated)."""
-        warnings.warn(
-            "history_trades_month_year is deprecated and may be removed in a future version.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.get(f"/v2/history/trades/{month}/{year}")
 
     def history_orders(
         self, *, type: Optional[str] = None, count: Optional[int] = None
@@ -284,7 +280,11 @@ class FiriAPI:
         return self.get("/v2/history/orders", params=params)
 
     def history_orders_market(
-        self, market: str, *, type: Optional[str] = None, count: Optional[int] = None
+        self,
+        market: str,
+        *,
+        type: Optional[str] = None,
+        count: Optional[int] = None,
     ) -> Dict:  # noqa: A003
         """Get history over orders by market."""
         params: Dict[str, Any] = {}
@@ -307,7 +307,11 @@ class FiriAPI:
         return self.get(f"/v2/markets/{market}/history", params=params or None)
 
     def markets_market_depth(
-        self, market: str, *, bids: Optional[int] = None, asks: Optional[int] = None
+        self,
+        market: str,
+        *,
+        bids: Optional[int] = None,
+        asks: Optional[int] = None,
     ) -> Dict:
         """Get orderbooks for a market."""
         params: Dict[str, Any] = {}
@@ -353,18 +357,10 @@ class FiriAPI:
         """Get a user's pending ETH withdraws."""
         return self.coin_withdraw_pending("ETH")
 
-    # --- Asset address endpoints (normalized names) ------------------------------
+    # --- Asset address endpoints (normalized names) -------------------------
     def eth_address(self) -> Dict:
         """Get a user's ETH address."""
         return self.coin_address("ETH")
-
-    def eth_Address(self) -> Dict:  # backwards compatibility
-        warnings.warn(
-            "eth_Address is deprecated; use eth_address",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.eth_address()
 
     def dai_withdraw_pending(self) -> Dict:
         """Get a user's pending DAI withdraws."""
@@ -374,25 +370,9 @@ class FiriAPI:
         """Get a user's DAI address."""
         return self.coin_address("DAI")
 
-    def dai_Address(self) -> Dict:  # deprecated
-        warnings.warn(
-            "dai_Address is deprecated; use dai_address",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.dai_address()
-
     def dot_address(self) -> Dict:
         """Get a user's DOT address."""
         return self.coin_address("DOT")
-
-    def dot_Address(self) -> Dict:
-        warnings.warn(
-            "dot_Address is deprecated; use dot_address",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.dot_address()
 
     def dot_withdraw_pending(self) -> Dict:
         """Get a user's pending DOT withdraws."""
@@ -406,14 +386,6 @@ class FiriAPI:
         """Get a user's BTC address."""
         return self.coin_address("BTC")
 
-    def btc_Address(self) -> Dict:
-        warnings.warn(
-            "btc_Address is deprecated; use btc_address",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.btc_address()
-
     def ada_withdraw_pending(self) -> Dict:
         """Get a user's pending ADA withdraws."""
         return self.coin_withdraw_pending("ADA")
@@ -421,14 +393,6 @@ class FiriAPI:
     def ada_address(self) -> Dict:
         """Get a user's ADA address."""
         return self.coin_address("ADA")
-
-    def ada_Address(self) -> Dict:
-        warnings.warn(
-            "ada_Address is deprecated; use ada_address",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.ada_address()
 
     def deposit_history(
         self, *, count: Optional[int] = None, before: Optional[int] = None
@@ -440,7 +404,7 @@ class FiriAPI:
         count : int | None
             Number of records (defaults to DEFAULT_COUNT if omitted).
         before : int | None
-            Fetch deposits before this (API-defined) numeric cursor / timestamp.
+            Fetch deposits before this API-defined numeric cursor or timestamp.
         """
         params: Dict[str, Any] = {}
         count = self._validate_int(
@@ -459,11 +423,15 @@ class FiriAPI:
         """Get orders."""
         return self.get("/v2/orders")
 
-    def orders_market(self, market: str, *, count: Optional[int] = None) -> Dict:
+    def orders_market(
+        self, market: str, *, count: Optional[int] = None
+    ) -> Dict:
         """Get all active orders for a specific market."""
         params: Dict[str, Any] = {}
         if count is not None:
-            params["count"] = self._validate_int("count", count, maximum=self.MAX_COUNT)
+            params["count"] = self._validate_int(
+                "count", count, maximum=self.MAX_COUNT
+            )
         return self.get(f"/v2/orders/{market}", params=params or None)
 
     def orders_market_history(
@@ -472,14 +440,18 @@ class FiriAPI:
         """Get all filled and closed orders for a specific market."""
         params: Dict[str, Any] = {}
         if count is not None:
-            params["count"] = self._validate_int("count", count, maximum=self.MAX_COUNT)
+            params["count"] = self._validate_int(
+                "count", count, maximum=self.MAX_COUNT
+            )
         return self.get(f"/v2/orders/{market}/history", params=params or None)
 
     def orders_history(self, *, count: Optional[int] = None) -> Dict:
         """Get all filled and closed orders."""
         params: Dict[str, Any] = {}
         if count is not None:
-            params["count"] = self._validate_int("count", count, maximum=self.MAX_COUNT)
+            params["count"] = self._validate_int(
+                "count", count, maximum=self.MAX_COUNT
+            )
         return self.get("/v2/orders/history", params=params or None)
 
     def order_orderid(self, orderID: str) -> Dict:
@@ -494,42 +466,6 @@ class FiriAPI:
     def delete_orders(self) -> Dict:
         """Delete your orders."""
         return self.delete("/v2/orders")
-
-    def delete_orders_orderid_market_detailed(self, orderID: str, market: str) -> Dict:
-        """Delete your order by market and orderID, returns matched amount in cancelled order.
-
-        Deprecated: use delete_order_detailed(order_id, market=...) instead.
-        """
-        warnings.warn(
-            "delete_orders_orderid_market_detailed is deprecated; use delete_order_detailed(order_id, market=...)",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.delete(f"/v2/orders/{orderID}/{market}/detailed")
-
-    def delete_orders_orderid_detailed(self, orderID: str) -> Dict:
-        """Delete your order by orderID, returns matched amount in cancelled order.
-
-        Deprecated: use delete_order_detailed(order_id) instead.
-        """
-        warnings.warn(
-            "delete_orders_orderid_detailed is deprecated; use delete_order_detailed(order_id)",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.delete(f"/v2/orders/{orderID}/detailed")
-
-    def delete_orders_marketormarketsid(self, marketOrMarketID: str) -> Dict:
-        """Delete your orders by market.
-
-        Deprecated naming retained for backward compatibility; prefer :meth:`delete_orders_for_market`.
-        """
-        warnings.warn(
-            "delete_orders_marketormarketsid is deprecated; use delete_orders_for_market",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.delete_orders_for_market(marketOrMarketID)
 
     def delete_orders_for_market(self, market_or_market_id: str) -> Dict:
         """Delete your orders by market (preferred name)."""
@@ -556,12 +492,19 @@ class FiriAPI:
         """Check the balance for your wallets."""
         return self.get("/v2/balances")
 
-    def post_orders(self, market: str, ordertype: str, price: str, amount: str) -> Dict:
+    def post_orders(
+        self, market: str, ordertype: str, price: str, amount: str
+    ) -> Dict:
         """Create your order."""
-        data = {"market": market, "type": ordertype, "price": price, "amount": amount}
+        data = {
+            "market": market,
+            "type": ordertype,
+            "price": price,
+            "amount": amount,
+        }
         return self.post("/v2/orders", data=data)
 
-    # --- Generic coin helpers ---------------------------------------------------
+    # --- Generic coin helpers ----------------------------------------------
     def coin_address(self, symbol: str) -> Dict:
         """Get a deposit/address for a coin symbol (e.g. 'BTC', 'ETH').
 
