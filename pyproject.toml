@@ -10,7 +10,7 @@ authors = [
 ]
 description = "Firipy is a Python wrapper for the Firi API. It provides a simple and intuitive way to interact with the Firi cryptocurrency exchange, allowing users to retrieve market data, manage orders, and more. With Firipy, you can easily integrate Firi's features into your Python applications."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = {text = "MIT"}
 keywords = ["firi", "crypto", "exchange", "api", "trading"]
 classifiers = [

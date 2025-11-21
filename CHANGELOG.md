@@ -17,6 +17,7 @@ All notable changes to this project will be documented in this file. This format
 - Deprecated delete helpers (`delete_orders_orderid_detailed`,
   `delete_orders_orderid_market_detailed`, `delete_orders_marketormarketsid`) in favor of
   the concise `delete_order_detailed` and `delete_orders_for_market` methods.
+- Dropped Python 3.9 support; the client now requires Python 3.10 or newer.
 
 
 ## [0.1.0] - 2025-09-25
