@@ -21,7 +21,6 @@
       "description": "Surface major upgrades individually",
       "matchUpdateTypes": ["major"],
       "groupName": "major {{depName}}",
-      "separateMajorMinor": true,
       "semanticCommitType": "chore",
       "semanticCommitScope": "deps"
     },
