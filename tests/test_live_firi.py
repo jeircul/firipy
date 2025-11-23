@@ -1,7 +1,6 @@
 """Live integration tests that hit the real Firi API via ``pytest``."""
 
 import os
-import warnings
 
 import pytest
 
@@ -58,15 +57,6 @@ def test_live_error_handling_suppressed() -> None:
     assert API_KEY is not None
     client = FiriAPI(API_KEY, raise_on_error=False)
     data = client.get("/this/endpoint/does/not/exist")
+    assert isinstance(data, dict)
     assert "error" in data and data.get("status") in {400, 404}
 
-
-@pytest.mark.integration
-def test_live_deprecated_method_warning() -> None:
-    """Confirm deprecated helpers issue warnings against the live API."""
-    assert API_KEY is not None
-    client = FiriAPI(API_KEY, raise_on_error=False)
-    with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter("always")
-        client.eth_Address()
-        assert any(issubclass(wi.category, DeprecationWarning) for wi in w)

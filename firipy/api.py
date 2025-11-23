@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import warnings
 from time import sleep
-from typing import Any, Dict, Iterable, Optional
+from typing import Any, Dict, Iterable, TypeAlias
 
 from requests import Response, Session
 from requests.exceptions import HTTPError, RequestException
@@ -13,6 +13,8 @@ from requests.exceptions import HTTPError, RequestException
 __all__ = ["FiriAPI", "FiriAPIError", "FiriHTTPError"]
 
 log = logging.getLogger(__name__)
+
+JSON: TypeAlias = Dict[str, Any] | list[Any]
 
 
 class FiriAPIError(Exception):
@@ -100,7 +102,7 @@ class FiriAPI:
             f"raise_on_error={self.raise_on_error}, token='***')"
         )
 
-    def _request(self, method: str, endpoint: str, **kwargs) -> Dict:
+    def _request(self, method: str, endpoint: str, **kwargs) -> JSON:
         """Send an HTTP request and return parsed JSON.
 
         Returns
@@ -160,22 +162,24 @@ class FiriAPI:
                     "status": response.status_code,
                 }
 
-    def get(self, endpoint: str, **kwargs) -> Dict:
+    def get(self, endpoint: str, **kwargs) -> JSON:
         """Send a GET request to the given endpoint."""
         return self._request("GET", endpoint, **kwargs)
 
-    def delete(self, endpoint: str) -> Dict:
+    def delete(self, endpoint: str) -> JSON:
         """Send a DELETE request to the given endpoint."""
         return self._request("DELETE", endpoint)
 
-    def post(self, endpoint: str, data: Optional[Dict] = None) -> Dict:
+    def post(
+        self, endpoint: str, data: Dict[str, Any] | None = None
+    ) -> JSON:
         """Send a POST request to the given endpoint."""
         return self._request("POST", endpoint, json=data)
 
     # --- Internal helpers --------------------------------------------------
     def _validate_choice(
-        self, name: str, value: Optional[str], choices: Iterable[str]
-    ) -> Optional[str]:
+        self, name: str, value: str | None, choices: Iterable[str]
+    ) -> str | None:
         """Ensure provided values stay within the allowed choices."""
         if value is None:
             return None
@@ -189,11 +193,11 @@ class FiriAPI:
     def _validate_int(
         self,
         name: str,
-        value: Optional[int],
+        value: int | None,
         *,
         minimum: int = 1,
-        maximum: Optional[int] = None,
-    ) -> Optional[int]:
+        maximum: int | None = None,
+    ) -> int | None:
         """Validate integer bounds while allowing optional input."""
         if value is None:
             return None
@@ -210,13 +214,13 @@ class FiriAPI:
             )
         return value
 
-    def time(self) -> Dict:
+    def time(self) -> JSON:
         """Get the current time from the Firi API."""
         return self.get("/time")
 
     def history_transactions(
-        self, *, count: Optional[int] = None, direction: Optional[str] = None
-    ) -> Dict:
+        self, *, count: int | None = None, direction: str | None = None
+    ) -> JSON:
         """Get history over all transactions.
 
         Parameters
@@ -232,35 +236,44 @@ class FiriAPI:
             "count", count or self.DEFAULT_COUNT, maximum=self.MAX_COUNT
         )
         params["count"] = count
-        if self._validate_choice("direction", direction, {"start", "end"}):
-            params["direction"] = direction  # type: ignore[assignment]
+        validated_direction = self._validate_choice(
+            "direction", direction, {"start", "end"}
+        )
+        if validated_direction is not None:
+            params["direction"] = validated_direction
         return self.get("/v2/history/transactions", params=params)
 
     def history_transactions_year(
-        self, year: str, *, direction: Optional[str] = None
-    ) -> Dict:
+        self, year: str, *, direction: str | None = None
+    ) -> JSON:
         """Get history over transactions by year."""
         params: Dict[str, Any] = {}
-        if self._validate_choice("direction", direction, {"start", "end"}):
-            params["direction"] = direction  # type: ignore[assignment]
+        validated_direction = self._validate_choice(
+            "direction", direction, {"start", "end"}
+        )
+        if validated_direction is not None:
+            params["direction"] = validated_direction
         return self.get(
             f"/v2/history/transactions/{year}", params=params or None
         )
 
     def history_transactions_month_year(
-        self, month: str, year: str, *, direction: Optional[str] = None
-    ) -> Dict:
+        self, month: str, year: str, *, direction: str | None = None
+    ) -> JSON:
         """Get history over transactions by month and year."""
         params: Dict[str, Any] = {}
-        if self._validate_choice("direction", direction, {"start", "end"}):
-            params["direction"] = direction  # type: ignore[assignment]
+        validated_direction = self._validate_choice(
+            "direction", direction, {"start", "end"}
+        )
+        if validated_direction is not None:
+            params["direction"] = validated_direction
         return self.get(
             f"/v2/history/transactions/{month}/{year}", params=params or None
         )
 
     def history_orders(
-        self, *, type: Optional[str] = None, count: Optional[int] = None
-    ) -> Dict:  # noqa: A003
+        self, *, type: str | None = None, count: int | None = None
+    ) -> JSON:  # noqa: A003
         """Get history over all orders.
 
         Parameters
@@ -283,9 +296,9 @@ class FiriAPI:
         self,
         market: str,
         *,
-        type: Optional[str] = None,
-        count: Optional[int] = None,
-    ) -> Dict:  # noqa: A003
+        type: str | None = None,
+        count: int | None = None,
+    ) -> JSON:  # noqa: A003
         """Get history over orders by market."""
         params: Dict[str, Any] = {}
         count = self._validate_int(
@@ -297,8 +310,8 @@ class FiriAPI:
         return self.get(f"/v2/history/orders/{market}", params=params)
 
     def markets_market_history(
-        self, market: str, *, count: Optional[int] = None
-    ) -> Dict:
+        self, market: str, *, count: int | None = None
+    ) -> JSON:
         """Get history over a specific market."""
         params: Dict[str, Any] = {}
         if count is not None:
@@ -310,9 +323,9 @@ class FiriAPI:
         self,
         market: str,
         *,
-        bids: Optional[int] = None,
-        asks: Optional[int] = None,
-    ) -> Dict:
+        bids: int | None = None,
+        asks: int | None = None,
+    ) -> JSON:
         """Get orderbooks for a market."""
         params: Dict[str, Any] = {}
         if bids is not None:
@@ -321,82 +334,82 @@ class FiriAPI:
             params["asks"] = self._validate_int("asks", asks)
         return self.get(f"/v2/markets/{market}/depth", params=params or None)
 
-    def markets_market(self, market: str) -> Dict:
+    def markets_market(self, market: str) -> JSON:
         """Get info about specific market."""
         return self.get(f"/v2/markets/{market}")
 
-    def markets(self) -> Dict:
+    def markets(self) -> JSON:
         """Get available markets."""
         return self.get("/v2/markets")
 
-    def markets_market_ticker(self, market: str) -> Dict:
+    def markets_market_ticker(self, market: str) -> JSON:
         """Get ticker for specific market."""
         return self.get(f"/v2/markets/{market}/ticker")
 
-    def markets_tickers(self) -> Dict:
+    def markets_tickers(self) -> JSON:
         """Get available tickers."""
         return self.get("/v2/markets/tickers")
 
-    def xrp_withdraw_pending(self) -> Dict:
+    def xrp_withdraw_pending(self) -> JSON:
         """Get a user's pending XRP withdraws."""
         return self.coin_withdraw_pending("XRP")
 
-    def xrp_withdraw_address(self) -> Dict:
+    def xrp_withdraw_address(self) -> JSON:
         """Get a user's XRP address."""
         return self.coin_address("XRP")
 
-    def ltc_withdraw_pending(self) -> Dict:
+    def ltc_withdraw_pending(self) -> JSON:
         """Get a user's pending LTC withdraws."""
         return self.coin_withdraw_pending("LTC")
 
-    def ltc_withdraw_address(self) -> Dict:
+    def ltc_withdraw_address(self) -> JSON:
         """Get a user's LTC address."""
         return self.coin_address("LTC")
 
-    def eth_withdraw_pending(self) -> Dict:
+    def eth_withdraw_pending(self) -> JSON:
         """Get a user's pending ETH withdraws."""
         return self.coin_withdraw_pending("ETH")
 
     # --- Asset address endpoints (normalized names) -------------------------
-    def eth_address(self) -> Dict:
+    def eth_address(self) -> JSON:
         """Get a user's ETH address."""
         return self.coin_address("ETH")
 
-    def dai_withdraw_pending(self) -> Dict:
+    def dai_withdraw_pending(self) -> JSON:
         """Get a user's pending DAI withdraws."""
         return self.coin_withdraw_pending("DAI")
 
-    def dai_address(self) -> Dict:
+    def dai_address(self) -> JSON:
         """Get a user's DAI address."""
         return self.coin_address("DAI")
 
-    def dot_address(self) -> Dict:
+    def dot_address(self) -> JSON:
         """Get a user's DOT address."""
         return self.coin_address("DOT")
 
-    def dot_withdraw_pending(self) -> Dict:
+    def dot_withdraw_pending(self) -> JSON:
         """Get a user's pending DOT withdraws."""
         return self.coin_withdraw_pending("DOT")
 
-    def btc_withdraw_pending(self) -> Dict:
+    def btc_withdraw_pending(self) -> JSON:
         """Get a user's pending BTC withdraws."""
         return self.coin_withdraw_pending("BTC")
 
-    def btc_address(self) -> Dict:
+    def btc_address(self) -> JSON:
         """Get a user's BTC address."""
         return self.coin_address("BTC")
 
-    def ada_withdraw_pending(self) -> Dict:
+    def ada_withdraw_pending(self) -> JSON:
         """Get a user's pending ADA withdraws."""
         return self.coin_withdraw_pending("ADA")
 
-    def ada_address(self) -> Dict:
+    def ada_address(self) -> JSON:
         """Get a user's ADA address."""
         return self.coin_address("ADA")
 
     def deposit_history(
-        self, *, count: Optional[int] = None, before: Optional[int] = None
-    ) -> Dict:
+        self, *, count: int | None = None, before: int | None = None
+    ) -> JSON:
         """Get a user's history over deposits.
 
         Parameters
@@ -415,17 +428,17 @@ class FiriAPI:
             params["before"] = before
         return self.get("/v2/deposit/history", params=params)
 
-    def deposit_address(self) -> Dict:
+    def deposit_address(self) -> JSON:
         """Get a user's deposit address."""
         return self.get("/v2/deposit/address")
 
-    def orders(self) -> Dict:
+    def orders(self) -> JSON:
         """Get orders."""
         return self.get("/v2/orders")
 
     def orders_market(
-        self, market: str, *, count: Optional[int] = None
-    ) -> Dict:
+        self, market: str, *, count: int | None = None
+    ) -> JSON:
         """Get all active orders for a specific market."""
         params: Dict[str, Any] = {}
         if count is not None:
@@ -435,8 +448,8 @@ class FiriAPI:
         return self.get(f"/v2/orders/{market}", params=params or None)
 
     def orders_market_history(
-        self, market: str, *, count: Optional[int] = None
-    ) -> Dict:
+        self, market: str, *, count: int | None = None
+    ) -> JSON:
         """Get all filled and closed orders for a specific market."""
         params: Dict[str, Any] = {}
         if count is not None:
@@ -445,7 +458,7 @@ class FiriAPI:
             )
         return self.get(f"/v2/orders/{market}/history", params=params or None)
 
-    def orders_history(self, *, count: Optional[int] = None) -> Dict:
+    def orders_history(self, *, count: int | None = None) -> JSON:
         """Get all filled and closed orders."""
         params: Dict[str, Any] = {}
         if count is not None:
@@ -454,27 +467,27 @@ class FiriAPI:
             )
         return self.get("/v2/orders/history", params=params or None)
 
-    def order_orderid(self, orderID: str) -> Dict:
+    def order_orderid(self, orderID: str) -> JSON:
         """Get order by orderId."""
         return self.get(f"/v2/order/{orderID}")
 
     # New concise alias
-    def order(self, order_id: str) -> Dict:
+    def order(self, order_id: str) -> JSON:
         """Get order by order id (preferred concise alias)."""
         return self.order_orderid(order_id)
 
-    def delete_orders(self) -> Dict:
+    def delete_orders(self) -> JSON:
         """Delete your orders."""
         return self.delete("/v2/orders")
 
-    def delete_orders_for_market(self, market_or_market_id: str) -> Dict:
+    def delete_orders_for_market(self, market_or_market_id: str) -> JSON:
         """Delete your orders by market (preferred name)."""
         return self.delete(f"/v2/orders/{market_or_market_id}")
 
     # New concise deletion helper
     def delete_order_detailed(
-        self, order_id: str, *, market: Optional[str] = None
-    ) -> Dict:
+        self, order_id: str, *, market: str | None = None
+    ) -> JSON:
         """Delete an order and return matched amount if supported.
 
         Parameters
@@ -488,13 +501,13 @@ class FiriAPI:
             return self.delete(f"/v2/orders/{order_id}/{market}/detailed")
         return self.delete(f"/v2/orders/{order_id}/detailed")
 
-    def balances(self) -> Dict:
+    def balances(self) -> JSON:
         """Check the balance for your wallets."""
         return self.get("/v2/balances")
 
     def post_orders(
         self, market: str, ordertype: str, price: str, amount: str
-    ) -> Dict:
+    ) -> JSON:
         """Create your order."""
         data = {
             "market": market,
@@ -505,7 +518,7 @@ class FiriAPI:
         return self.post("/v2/orders", data=data)
 
     # --- Generic coin helpers ----------------------------------------------
-    def coin_address(self, symbol: str) -> Dict:
+    def coin_address(self, symbol: str) -> JSON:
         """Get a deposit/address for a coin symbol (e.g. 'BTC', 'ETH').
 
         Parameters
@@ -515,6 +528,6 @@ class FiriAPI:
         """
         return self.get(f"/v2/{symbol}/address")
 
-    def coin_withdraw_pending(self, symbol: str) -> Dict:
+    def coin_withdraw_pending(self, symbol: str) -> JSON:
         """Get pending withdrawals for a coin symbol."""
         return self.get(f"/v2/{symbol}/withdraw/pending")
