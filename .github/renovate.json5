@@ -1,0 +1,73 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard",
+    ":semanticCommits"
+  ],
+  "dependencyDashboard": true,
+  "prHourlyLimit": 2,
+  "schedule": [
+    "after 6pm and before 6am on every weekday"
+  ],
+  "separateMajorMinor": true,
+  "separateMinorPatch": true,
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 6am on monday"]
+  },
+  "packageRules": [
+    {
+      "description": "Surface major upgrades individually",
+      "matchUpdateTypes": ["major"],
+      "groupName": "major {{depName}}",
+      "separateMajorMinor": true,
+      "semanticCommitType": "chore",
+      "semanticCommitScope": "deps"
+    },
+    {
+      "description": "Group core Python tooling maintained in pyproject",
+      "matchManagers": ["pip_setup"],
+      "matchPackagePatterns": [
+        "^ruff$",
+        "^mypy$",
+        "^pytest$",
+        "^pytest-cov$",
+        "^build$",
+        "^twine$",
+        "^types-requests$"
+      ],
+      "groupName": "python tooling",
+      "semanticCommitType": "chore",
+      "semanticCommitScope": "deps-py"
+    },
+    {
+      "description": "Group GitHub Actions updates while keeping majors separated",
+      "matchManagers": ["github-actions"],
+      "groupName": "github actions",
+      "separateMajorMinor": true,
+      "semanticCommitType": "chore",
+      "semanticCommitScope": "deps-gha"
+    }
+  ],
+  "regexManagers": [
+    {
+      "description": "Update pinned Python versions referenced in workflows",
+      "fileMatch": ["^\\.github/workflows/.*\\.yml$"],
+      "matchStrings": [
+        "python-version: ['\"']?(?<currentValue>\\d+\\.\\d+)['\"']?"
+      ],
+      "depNameTemplate": "python",
+      "datasourceTemplate": "python-version"
+    },
+    {
+      "description": "Update python-version pins found in Taskfile",
+      "fileMatch": ["Taskfile\\.yml"],
+      "matchStrings": [
+        "python-version: ['\"']?(?<currentValue>\\d+\\.\\d+)['\"']?"
+      ],
+      "depNameTemplate": "python",
+      "datasourceTemplate": "python-version"
+    }
+  ]
+}
