@@ -11,11 +11,14 @@ Steps:
    - Separates majors, groups related packages (e.g., Flux charts, terraform providers/modules, container images), and honors repo conventions.
    - Adds custom/regex managers for pinned manifest URLs or other bespoke patterns.
    - Replaces existing config entirely.
-3. Summarize improvements in ≤3 sentences and end by asking: “Would you like to enable automerge for safe update types?”
+3. Validate the JSON5 (syntax + schema) before presenting it.
+4. Summarize improvements in ≤3 sentences and end by asking: “Would you like to enable automerge for safe update types?”
 
 Rules:
 
 - Stay concise; no extra commentary beyond summary + question to save tokens.
 - Follow Renovate upgrade best practices for pinning, automerge, and lockfile maintenance.
 - If automerge is appropriate, request explicit user approval before enabling.
+- Use only current option names from the Renovate schema.
+- Ensure option combinations are schema-valid.
 - Never propose opening a PR—output only the config, summary, and question.
