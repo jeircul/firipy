@@ -18,6 +18,21 @@
   },
   "packageRules": [
     {
+      "description": "Automerge safe, non-breaking updates",
+      "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
+      "automerge": true
+    },
+    {
+      "description": "Append version info to commit messages",
+      "matchUpdateTypes": ["major", "minor", "patch"],
+      "commitMessageExtra": "( {{currentVersion}} → {{newVersion}} )"
+    },
+    {
+      "description": "Append digest info to commit messages",
+      "matchUpdateTypes": ["digest"],
+      "commitMessageExtra": "( {{currentDigestShort}} → {{newDigestShort}} )"
+    },
+    {
       "description": "Surface major upgrades individually",
       "matchUpdateTypes": ["major"],
       "groupName": "major {{depName}}",
@@ -49,10 +64,11 @@
       "semanticCommitScope": "deps-gha"
     }
   ],
-  "regexManagers": [
+  "customManagers": [
     {
       "description": "Update pinned Python versions referenced in workflows",
-      "fileMatch": ["^\\.github/workflows/.*\\.yml$"],
+      "customType": "regex",
+      "managerFilePatterns": ["/^\\.github\\/workflows\\/.*\\.yml$/"],
       "matchStrings": [
         "python-version: ['\"']?(?<currentValue>\\d+\\.\\d+)['\"']?"
       ],
@@ -61,7 +77,8 @@
     },
     {
       "description": "Update python-version pins found in Taskfile",
-      "fileMatch": ["Taskfile\\.yml"],
+      "customType": "regex",
+      "managerFilePatterns": ["/^Taskfile\\.yml$/"],
       "matchStrings": [
         "python-version: ['\"']?(?<currentValue>\\d+\\.\\d+)['\"']?"
       ],
