@@ -1,89 +1,113 @@
 {
-  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:recommended",
-    ":dependencyDashboard",
-    ":semanticCommits"
+  $schema: 'https://docs.renovatebot.com/renovate-schema.json',
+  extends: [
+    'config:recommended',
+    ':dependencyDashboard',
+    ':semanticCommits',
   ],
-  "dependencyDashboard": true,
-  "prHourlyLimit": 2,
-  "schedule": [
-    "after 6pm and before 6am on every weekday"
+  dependencyDashboard: true,
+  prHourlyLimit: 2,
+  schedule: [
+    'after 6pm every weekday',
+    'before 6am every weekday',
   ],
-  "separateMajorMinor": true,
-  "separateMinorPatch": true,
-  "lockFileMaintenance": {
-    "enabled": true,
-    "schedule": ["before 6am on monday"]
+  separateMajorMinor: true,
+  separateMinorPatch: true,
+  lockFileMaintenance: {
+    enabled: true,
+    schedule: [
+      'before 6am on monday',
+    ],
   },
-  "packageRules": [
+  packageRules: [
     {
-      "description": "Automerge safe, non-breaking updates",
-      "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
-      "automerge": true
-    },
-    {
-      "description": "Append version info to commit messages",
-      "matchUpdateTypes": ["major", "minor", "patch"],
-      "commitMessageExtra": "( {{currentVersion}} → {{newVersion}} )"
-    },
-    {
-      "description": "Append digest info to commit messages",
-      "matchUpdateTypes": ["digest"],
-      "commitMessageExtra": "( {{currentDigestShort}} → {{newDigestShort}} )"
-    },
-    {
-      "description": "Surface major upgrades individually",
-      "matchUpdateTypes": ["major"],
-      "groupName": "major {{depName}}",
-      "semanticCommitType": "chore",
-      "semanticCommitScope": "deps"
-    },
-    {
-      "description": "Group core Python tooling maintained in pyproject",
-      "matchManagers": ["pip_setup"],
-      "matchPackagePatterns": [
-        "^ruff$",
-        "^mypy$",
-        "^pytest$",
-        "^pytest-cov$",
-        "^build$",
-        "^twine$",
-        "^types-requests$"
+      description: 'Automerge safe, non-breaking updates',
+      matchUpdateTypes: [
+        'minor',
+        'patch',
+        'pin',
+        'digest',
       ],
-      "groupName": "python tooling",
-      "semanticCommitType": "chore",
-      "semanticCommitScope": "deps-py"
+      automerge: true,
     },
     {
-      "description": "Group GitHub Actions updates while keeping majors separated",
-      "matchManagers": ["github-actions"],
-      "groupName": "github actions",
-      "separateMajorMinor": true,
-      "semanticCommitType": "chore",
-      "semanticCommitScope": "deps-gha"
-    }
+      description: 'Append version info to commit messages',
+      matchUpdateTypes: [
+        'major',
+        'minor',
+        'patch',
+      ],
+      commitMessageExtra: '( {{currentVersion}} → {{newVersion}} )',
+    },
+    {
+      description: 'Append digest info to commit messages',
+      matchUpdateTypes: [
+        'digest',
+      ],
+      commitMessageExtra: '( {{currentDigestShort}} → {{newDigestShort}} )',
+    },
+    {
+      description: 'Surface major upgrades individually',
+      matchUpdateTypes: [
+        'major',
+      ],
+      groupName: 'major {{depName}}',
+      semanticCommitType: 'chore',
+      semanticCommitScope: 'deps',
+    },
+    {
+      description: 'Group core Python tooling maintained in pyproject',
+      matchManagers: [
+        'pip_setup',
+      ],
+      groupName: 'python tooling',
+      semanticCommitType: 'chore',
+      semanticCommitScope: 'deps-py',
+      matchPackageNames: [
+        '/^ruff$/',
+        '/^mypy$/',
+        '/^pytest$/',
+        '/^pytest-cov$/',
+        '/^build$/',
+        '/^twine$/',
+        '/^types-requests$/',
+      ],
+    },
+    {
+      description: 'Group GitHub Actions updates while keeping majors separated',
+      matchManagers: [
+        'github-actions',
+      ],
+      groupName: 'github actions',
+      separateMajorMinor: true,
+      semanticCommitType: 'chore',
+      semanticCommitScope: 'deps-gha',
+    },
   ],
-  "customManagers": [
+  customManagers: [
     {
-      "description": "Update pinned Python versions referenced in workflows",
-      "customType": "regex",
-      "managerFilePatterns": ["/^\\.github\\/workflows\\/.*\\.yml$/"],
-      "matchStrings": [
-        "python-version: ['\"']?(?<currentValue>\\d+\\.\\d+)['\"']?"
+      description: 'Update pinned Python versions referenced in workflows',
+      customType: 'regex',
+      managerFilePatterns: [
+        '/^\\.github\\/workflows\\/.*\\.yml$/',
       ],
-      "depNameTemplate": "python",
-      "datasourceTemplate": "python-version"
+      matchStrings: [
+        "python-version: ['\"']?(?<currentValue>\\d+\\.\\d+)['\"']?",
+      ],
+      depNameTemplate: 'python',
+      datasourceTemplate: 'python-version',
     },
     {
-      "description": "Update python-version pins found in Taskfile",
-      "customType": "regex",
-      "managerFilePatterns": ["/^Taskfile\\.yml$/"],
-      "matchStrings": [
-        "python-version: ['\"']?(?<currentValue>\\d+\\.\\d+)['\"']?"
+      description: 'Update python-version pins found in Taskfile',
+      customType: 'regex',
+      managerFilePatterns: [
+        '/^Taskfile\\.yml$/',
       ],
-      "depNameTemplate": "python",
-      "datasourceTemplate": "python-version"
-    }
-  ]
+      matchStrings: [
+        "python-version: ['\"']?(?<currentValue>\\d+\\.\\d+)['\"']?",
+      ],
+      depNameTemplate: 'python',
+      datasourceTemplate: 'python-version',
+    },
+  ],
 }
