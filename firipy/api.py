@@ -40,8 +40,10 @@ class FiriAPI:
 
     Parameters
     ----------
-    token : str
-        API access token (miraiex-access-key) for authenticating with Firi.
+    api_key : str
+        Your Firi API key (sent as the ``miraiex-access-key`` header).
+        Generate one at https://platform.firi.com/ under your account
+        settings.
     rate_limit : float, default 1.0
         Seconds to sleep before each request. Set to 0 to disable simple
         client-side pacing.
@@ -59,7 +61,7 @@ class FiriAPI:
 
     def __init__(
         self,
-        token: str,
+        api_key: str,
         *,
         rate_limit: float = 1.0,
         base_url: str = "https://api.firi.com",
@@ -67,14 +69,14 @@ class FiriAPI:
         raise_on_error: bool = True,
         session: Session | None = None,
     ):
-        headers = {"miraiex-access-key": token}
+        headers = {"miraiex-access-key": api_key}
         self.apiurl = base_url.rstrip("/")
         self.session = session or Session()
         self.session.headers.update(headers)
         self.rate_limit = rate_limit
         self.timeout = timeout
         self.raise_on_error = raise_on_error
-        self._token = token  # stored for potential refresh; kept private
+        self._api_key = api_key  # stored for potential refresh; kept private
 
     # --- Context manager helpers -------------------------------------------
     def __enter__(self) -> "FiriAPI":  # pragma: no cover
@@ -99,7 +101,7 @@ class FiriAPI:
             f"base_url='{self.apiurl}', "
             f"rate_limit={self.rate_limit}, "
             f"timeout={self.timeout}, "
-            f"raise_on_error={self.raise_on_error}, token='***')"
+            f"raise_on_error={self.raise_on_error}, api_key='***')"
         )
 
     def _request(self, method: str, endpoint: str, **kwargs) -> JSON:

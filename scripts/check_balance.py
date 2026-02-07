@@ -11,11 +11,11 @@ from firipy import FiriAPI, FiriAPIError, FiriHTTPError
 
 def main() -> None:
     """Print the authenticated user's balances in JSON form."""
-    token = os.environ.get("API_KEY_FIRI")
-    if not token:
-        sys.exit("Set API_KEY_FIRI with your live token before running this script.")
+    api_key = os.environ.get("API_KEY_FIRI")
+    if not api_key:
+        sys.exit("Set API_KEY_FIRI with your Firi API key before running this script.")
 
-    client = FiriAPI(token, rate_limit=0.3, raise_on_error=True)
+    client = FiriAPI(api_key, rate_limit=0.3, raise_on_error=True)
     try:
         balances = client.balances()
     except (FiriHTTPError, FiriAPIError) as exc:
