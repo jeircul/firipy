@@ -23,10 +23,11 @@ First, import the `FiriAPI` class from the `firipy` module:
 from firipy import FiriAPI
 ```
 
-Then, initialize the client with your API token from [Firi](https://platform.firi.com/):
+Then, initialize the client with your API key from [Firi](https://platform.firi.com/).
+You can generate an API key in your Firi account under **Settings > API**.
 
 ```python
-client = FiriAPI("your-token")
+client = FiriAPI("your-api-key")
 ```
 
 Now you can use the client to interact with the Firi API. For example, to get the current time:
@@ -57,7 +58,7 @@ Automatically closes the underlying HTTP session when done:
 ```python
 from firipy import FiriAPI
 
-with FiriAPI("your-token") as client:
+with FiriAPI("your-api-key") as client:
     markets = client.markets()
     print(markets)
 ```
@@ -68,8 +69,8 @@ Firipy includes a rate limit (seconds to sleep before each request). By default 
 You can change it or disable it:
 
 ```python
-client = FiriAPI("your-token", rate_limit=2)  # wait 2 seconds between requests
-client_fast = FiriAPI("your-token", rate_limit=0)  # no client-side delay
+client = FiriAPI("your-api-key", rate_limit=2)  # wait 2 seconds between requests
+client_fast = FiriAPI("your-api-key", rate_limit=0)  # no client-side delay
 ```
 
 ## 🚩 Error Handling
@@ -84,7 +85,7 @@ Structured exceptions are raised by default:
 Suppress exceptions by setting `raise_on_error=False`:
 
 ```python
-client = FiriAPI("your-token", raise_on_error=False)
+client = FiriAPI("your-api-key", raise_on_error=False)
 data = client.markets()
 if "error" in data:
     print("Failed:", data)

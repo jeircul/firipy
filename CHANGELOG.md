@@ -6,6 +6,18 @@ All notable changes to this project will be documented in this file. This format
 
 - Nothing yet.
 
+## [0.2.0] - 2026-02-07
+
+### Changed
+
+- **Breaking:** Renamed the `FiriAPI` constructor parameter from `token` to
+  `api_key` to match Firi's own terminology (resolves #21). Positional usage
+  (`FiriAPI("key")`) is unaffected; keyword callers must update from
+  `token=` to `api_key=`.
+- Updated README, examples, docstrings, and scripts to consistently use
+  "API key" instead of "token."
+
+
 ## [0.1.1] - 2025-11-21
 
 ### Removed
