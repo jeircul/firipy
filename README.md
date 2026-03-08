@@ -5,9 +5,9 @@
 ![PyPI - Version](https://img.shields.io/pypi/v/firipy)
 ![GitHub](https://img.shields.io/github/license/jeircul/firipy)
 
-Async Python client for the [Firi](https://www.firi.com/) cryptocurrency exchange API.
+⚡ Async Python client for the [Firi](https://www.firi.com/) cryptocurrency exchange API.
 
-## Installation
+## 📦 Installation
 
 ```bash
 pip install firipy
@@ -15,7 +15,7 @@ pip install firipy
 
 Requires **Python 3.13+**.
 
-## Usage
+## 🚀 Usage
 
 All methods are async and must be awaited:
 
@@ -37,7 +37,7 @@ async def main():
 asyncio.run(main())
 ```
 
-## Rate Limiting
+## ⏳ Rate Limiting
 
 Built-in client-side pacing (seconds to sleep before each request). Default is 1 second:
 
@@ -48,7 +48,7 @@ client = FiriAPI("your-api-key", rate_limit=0)    # no delay
 
 Uses `asyncio.sleep` so it won't block the event loop.
 
-## Error Handling
+## 🚩 Error Handling
 
 Structured exceptions are raised by default:
 
@@ -68,7 +68,7 @@ async with FiriAPI("your-api-key", raise_on_error=False) as client:
 
 Error dict shape: `{"error": str, "status": int | None}`.
 
-## Endpoint Overview
+## 📡 Endpoint Overview
 
 | Method | Endpoint | Purpose | Key Optional Params |
 |---|---|---|---|
@@ -112,17 +112,17 @@ await client.coin_withdraw_pending("ETH")
 
 Per-asset convenience methods remain available.
 
-## Official Docs Sync
+## 🔗 Official Docs Sync
 
 - Checked against [developers.firi.com](https://developers.firi.com/) (Trading API 1.0.0) on **2025-11-21**.
 - When Firi updates their spec, diff it against the endpoint table above.
 - Use the rate-limit guardrails (`DEFAULT_COUNT`, `MAX_COUNT`) to stay within API constraints.
 
-## Contributing
+## 🔥 Contributing
 
 Contributions welcome! Submit a pull request or create an issue on the [GitHub page](https://github.com/jeircul/firipy).
 
-### Development Setup
+### 🧪 Development Setup
 
 ```bash
 git clone https://github.com/jeircul/firipy
@@ -139,7 +139,7 @@ uv run ruff format --check .
 uv run ty check
 ```
 
-### go-task shortcuts (optional)
+### 🛠️ go-task shortcuts (optional)
 
 If you have [go-task](https://taskfile.dev) installed:
 
@@ -174,6 +174,6 @@ task version DRY_RUN=1
 
 v1.0.0 is async-only and uses `httpx` instead of `requests`. See the [CHANGELOG](CHANGELOG.md#100---2026-03-08) for a full migration guide.
 
-## Disclaimer
+## 📝 Disclaimer
 
 This client was developed by Ove Aursland and is not officially associated with Firi.
