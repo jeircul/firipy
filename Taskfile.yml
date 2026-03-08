@@ -1,40 +1,35 @@
 version: '3'
 
 vars:
-  PYTHON: .venv/bin/python
-  PIP: .venv/bin/python -m pip
   PACKAGE: firipy
-  DIST_DIR: dist
 
 silent: false
 
 tasks:
-  venv:
-    desc: Ensure virtual environment exists
-    cmds:
-      - test -d .venv || python3 -m venv .venv
-      - '{{.PIP}} install --upgrade pip'
-
   install:
-    desc: Install project with dev extras
-    deps: [venv]
+    desc: Install project with dev dependencies via uv
     cmds:
-      - '{{.PIP}} install -e .[dev]'
+      - uv sync
 
   lint:
     desc: Run ruff lint checks
     cmds:
-      - '{{.PYTHON}} -m ruff check .'
+      - uv run ruff check .
+
+  format:
+    desc: Run ruff formatter
+    cmds:
+      - uv run ruff format .
 
   typecheck:
-    desc: Run mypy static type checking
+    desc: Run ty static type checking
     cmds:
-      - '{{.PYTHON}} -m mypy {{.PACKAGE}}'
+      - uv run ty check
 
   test:
     desc: Run test suite
     cmds:
-      - '{{.PYTHON}} -m pytest -q'
+      - uv run pytest -q
 
   qa:
     desc: Run lint, typecheck, and unit tests
@@ -48,19 +43,19 @@ tasks:
     cmds:
       - 'test -n "${API_KEY_FIRI}" || (echo "API_KEY_FIRI not set" && exit 1)'
       - 'test "${LIVE_FIRI_TESTS}" = "1" || (echo "Set LIVE_FIRI_TESTS=1 to enable live tests" && exit 1)'
-      - '{{.PYTHON}} -m pytest -q tests/test_live_firi.py'
+      - uv run pytest -q tests/test_live_firi.py
 
   balance:
     desc: Fetch balances from the live API (requires API_KEY_FIRI)
     cmds:
       - 'test -n "${API_KEY_FIRI}" || (echo "API_KEY_FIRI not set" && exit 1)'
-      - '{{.PYTHON}} scripts/check_balance.py'
+      - uv run python scripts/check_balance.py
 
   build:
     desc: Build sdist and wheel
     cmds:
-      - 'rm -rf {{.DIST_DIR}}'
-      - '{{.PYTHON}} -m build'
+      - rm -rf dist
+      - uv build
 
   release-check:
     desc: Run release validation (lint, typecheck, unit tests, build)
@@ -72,11 +67,11 @@ tasks:
     desc: Bump semantic version and roll CHANGELOG (PART=patch|minor|major or NEW=x.y.z)
     cmds:
       - |
-        PART="{{default \"patch\" .PART}}"
+        PART="{{default "patch" .PART}}"
         DRY_FLAG=""
         if [ "{{.DRY_RUN}}" = "1" ]; then DRY_FLAG="--dry-run"; fi
         if [ -n "{{.NEW}}" ]; then
-          {{.PYTHON}} scripts/bump_version.py --new-version "{{.NEW}}" ${DRY_FLAG}
+          uv run python scripts/bump_version.py --new-version "{{.NEW}}" ${DRY_FLAG}
         else
-          {{.PYTHON}} scripts/bump_version.py --part "${PART}" ${DRY_FLAG}
+          uv run python scripts/bump_version.py --part "${PART}" ${DRY_FLAG}
         fi

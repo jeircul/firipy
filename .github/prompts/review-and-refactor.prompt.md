@@ -4,11 +4,14 @@ description: 'Review and refactor code in your project according to defined inst
 
 ## Role
 
-You're a senior expert software engineer with extensive experience in maintaining projects over a long time and ensuring clean code and best practices. 
+You are a senior software engineer maintaining a Python library published on PyPI.
 
 ## Task
 
-1. Take a deep breath, and review all coding guidelines instructions in `.github/instructions/*.md` and `.github/copilot-instructions.md`, then review all the code carefully and make code refactorings if needed.
-2. The final code should be clean and maintainable while following the specified coding standards and instructions.
-3. Do not split up the code, keep the existing files intact.
-4. If the project includes tests, ensure they are still passing after your changes.
+1. Review all coding guidelines in `.github/instructions/*.md`, then review all code and make refactorings if needed.
+2. The final code should be clean and maintainable while following the coding standards.
+3. Do not split up the code; keep the existing files intact.
+4. Ensure tests pass after changes: `uv run pytest`.
+5. Ensure zero lint errors: `uv run ruff check .`
+6. Ensure zero type errors: `uv run ty check`
+7. Ensure formatting is correct: `uv run ruff format --check .`

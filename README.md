@@ -5,196 +5,175 @@
 ![PyPI - Version](https://img.shields.io/pypi/v/firipy)
 ![GitHub](https://img.shields.io/github/license/jeircul/firipy)
 
-Firipy is a ⚡ Python client for the Firi API.
+Async Python client for the [Firi](https://www.firi.com/) cryptocurrency exchange API.
 
-## 📦 Installation
-
-You can install Firipy using pip:
+## Installation
 
 ```bash
 pip install firipy
 ```
 
-## 🚀 Usage
+Requires **Python 3.13+**.
 
-First, import the `FiriAPI` class from the `firipy` module:
+## Usage
 
-```python
-from firipy import FiriAPI
-```
-
-Then, initialize the client with your API key from [Firi](https://platform.firi.com/).
-You can generate an API key in your Firi account under **Settings > API**.
+All methods are async and must be awaited:
 
 ```python
-client = FiriAPI("your-api-key")
-```
-
-Now you can use the client to interact with the Firi API. For example, to get the current time:
-
-```python
-time = client.time()
-print(time)
-```
-
-To get history over all transactions:
-
-```python
-history = client.history_transactions()
-print(history)
-```
-
-To get balances:
-
-```python
-balances = client.balances()
-print(balances)
-```
-
-### Using as a context manager
-
-Automatically closes the underlying HTTP session when done:
-
-```python
+import asyncio
 from firipy import FiriAPI
 
-with FiriAPI("your-api-key") as client:
-    markets = client.markets()
-    print(markets)
+async def main():
+    async with FiriAPI("your-api-key") as client:
+        time = await client.time()
+        print(time)
+
+        markets = await client.markets()
+        print(markets)
+
+        balances = await client.balances()
+        print(balances)
+
+asyncio.run(main())
 ```
 
-## ⏳ Rate Limiting
+## Rate Limiting
 
-Firipy includes a rate limit (seconds to sleep before each request). By default this is 1 second.
-You can change it or disable it:
+Built-in client-side pacing (seconds to sleep before each request). Default is 1 second:
 
 ```python
-client = FiriAPI("your-api-key", rate_limit=2)  # wait 2 seconds between requests
-client_fast = FiriAPI("your-api-key", rate_limit=0)  # no client-side delay
+client = FiriAPI("your-api-key", rate_limit=2)    # 2 second delay
+client = FiriAPI("your-api-key", rate_limit=0)    # no delay
 ```
 
-## 🚩 Error Handling
+Uses `asyncio.sleep` so it won't block the event loop.
+
+## Error Handling
 
 Structured exceptions are raised by default:
 
 | Exception | Description |
-|-----------|-------------|
+|---|---|
 | `FiriAPIError` | Base class for client errors |
-| `FiriHTTPError` | Non-success HTTP responses (status >=400) |
+| `FiriHTTPError` | Non-success HTTP responses (status >= 400) |
 
-Suppress exceptions by setting `raise_on_error=False`:
+Suppress exceptions with `raise_on_error=False`:
 
 ```python
-client = FiriAPI("your-api-key", raise_on_error=False)
-data = client.markets()
-if "error" in data:
-    print("Failed:", data)
+async with FiriAPI("your-api-key", raise_on_error=False) as client:
+    data = await client.markets()
+    if isinstance(data, dict) and "error" in data:
+        print("Failed:", data)
 ```
 
-Error dict shape: `{ "error": str, "status": int | None }`.
+Error dict shape: `{"error": str, "status": int | None}`.
 
-## 📡 Endpoint Overview (selection)
+## Endpoint Overview
 
 | Method | Endpoint | Purpose | Key Optional Params |
-|--------|----------|---------|---------------------|
-| `time()` | `/time` | Server time | – |
-| `markets()` | `/v2/markets` | List markets | – |
-| `markets_market(m)` | `/v2/markets/{m}` | Market details | – |
-| `markets_market_depth(m, bids=None, asks=None)` | `/v2/markets/{m}/depth` | Order book | `bids`, `asks` |
-| `markets_market_history(m, count=None)` | `/v2/markets/{m}/history` | Market trade history | `count` |
-| `markets_market_ticker(m)` | `/v2/markets/{m}/ticker` | Single ticker | – |
-| `markets_tickers()` | `/v2/markets/tickers` | All tickers | – |
-| `balances()` | `/v2/balances` | Wallet balances | – |
-| `history_transactions(count=None, direction=None)` | `/v2/history/transactions` | Transactions history | `count`, `direction` (`start`/`end`) |
-| `history_transactions_year(year, direction=None)` | `/v2/history/transactions/{year}` | Transactions history (year) | `direction` |
-| `history_transactions_month_year(month, year, direction=None)` | `/v2/history/transactions/{month}/{year}` | Transactions history (month+year) | `direction` |
-| `history_orders(type=None, count=None)` | `/v2/history/orders` | Orders history | `type`, `count` |
-| `history_orders_market(m, type=None, count=None)` | `/v2/history/orders/{m}` | Orders history (market) | `type`, `count` |
-| `deposit_history(count=None, before=None)` | `/v2/deposit/history` | Deposit history | `count`, `before` |
-| `deposit_address()` | `/v2/deposit/address` | Multi-coin deposit info | – |
-| `orders()` | `/v2/orders` | Active orders | – |
-| `orders_market(m, count=None)` | `/v2/orders/{m}` | Active orders (market) | `count` |
-| `orders_market_history(m, count=None)` | `/v2/orders/{m}/history` | Closed orders (market) | `count` |
-| `orders_history(count=None)` | `/v2/orders/history` | Closed orders | `count` |
-| `order(order_id)` | `/v2/order/{id}` | Get order | – |
-| `post_orders(market, type, price, amount)` | `/v2/orders` | Create order | – |
-| `delete_orders()` | `/v2/orders` | Cancel all orders | – |
-| `delete_orders_for_market(market)` | `/v2/orders/{market}` | Cancel orders for market | – |
-| `delete_order_detailed(order_id, market=None)` | `/v2/orders/{id}/detailed` | Cancel order + matched amt | `market` |
-| `coin_address(symbol)` | `/v2/{symbol}/address` | Coin deposit address | `symbol` (e.g. BTC) |
-| `coin_withdraw_pending(symbol)` | `/v2/{symbol}/withdraw/pending` | Pending withdrawals | `symbol` |
+|---|---|---|---|
+| `time()` | `/time` | Server time | -- |
+| `markets()` | `/v2/markets` | List markets | -- |
+| `markets_market(m)` | `/v2/markets/{m}` | Market details | -- |
+| `markets_market_depth(m, bids=, asks=)` | `/v2/markets/{m}/depth` | Order book | `bids`, `asks` |
+| `markets_market_history(m, count=)` | `/v2/markets/{m}/history` | Market trade history | `count` |
+| `markets_market_ticker(m)` | `/v2/markets/{m}/ticker` | Single ticker | -- |
+| `markets_tickers()` | `/v2/markets/tickers` | All tickers | -- |
+| `balances()` | `/v2/balances` | Wallet balances | -- |
+| `history_transactions(count=, direction=)` | `/v2/history/transactions` | Transaction history | `count`, `direction` |
+| `history_transactions_year(year, direction=)` | `/v2/history/transactions/{year}` | Yearly transactions | `direction` |
+| `history_transactions_month_year(month, year, direction=)` | `/v2/history/transactions/{month}/{year}` | Monthly transactions | `direction` |
+| `history_orders(type=, count=)` | `/v2/history/orders` | Order history | `type`, `count` |
+| `history_orders_market(m, type=, count=)` | `/v2/history/orders/{m}` | Market order history | `type`, `count` |
+| `deposit_history(count=, before=)` | `/v2/deposit/history` | Deposit history | `count`, `before` |
+| `deposit_address()` | `/v2/deposit/address` | Multi-coin deposit info | -- |
+| `orders()` | `/v2/orders` | Active orders | -- |
+| `orders_market(m, count=)` | `/v2/orders/{m}` | Active orders (market) | `count` |
+| `orders_market_history(m, count=)` | `/v2/orders/{m}/history` | Closed orders (market) | `count` |
+| `orders_history(count=)` | `/v2/orders/history` | Closed orders | `count` |
+| `order(order_id)` | `/v2/order/{id}` | Get order | -- |
+| `post_orders(market, type, price, amount)` | `/v2/orders` | Create order | -- |
+| `delete_orders()` | `/v2/orders` | Cancel all orders | -- |
+| `delete_orders_for_market(market)` | `/v2/orders/{market}` | Cancel market orders | -- |
+| `delete_order_detailed(order_id, market=)` | `/v2/orders/{id}/detailed` | Cancel + matched amt | `market` |
+| `coin_address(symbol)` | `/v2/{symbol}/address` | Coin deposit address | -- |
+| `coin_withdraw_pending(symbol)` | `/v2/{symbol}/withdraw/pending` | Pending withdrawals | -- |
 
-Defaults like `count` fall back to 500 (internal `DEFAULT_COUNT`) when omitted. A warning is emitted if you go above the internal `MAX_COUNT` (10,000) so you can reconsider the request size.
-
-## 🔗 Official Docs Sync
-
-- Checked against [developers.firi.com](https://developers.firi.com/) (Trading API 1.0.0) on **2025-11-21** so every method above maps to a documented endpoint under Time, Market, History, Coin, Deposit, Order, and Balance.
-- When Firi updates their spec, diff it against the table above plus the client methods to keep things in lockstep.
-- Use the rate-limit guardrails (`DEFAULT_COUNT`, `MAX_COUNT`) to stay within the constraints noted in the public docs.
+Default `count` is 500 (`DEFAULT_COUNT`). A warning is emitted above `MAX_COUNT` (10,000).
 
 ### Generic Coin Helpers
 
-Instead of calling `btc_address()`, `eth_address()`, etc. directly you can write:
+Instead of `btc_address()`, `eth_address()`, etc. you can use:
 
 ```python
-client.coin_address("BTC")
-client.coin_withdraw_pending("ETH")
+await client.coin_address("BTC")
+await client.coin_withdraw_pending("ETH")
 ```
 
-Concrete per-asset helpers remain for convenience.
+Per-asset convenience methods remain available.
 
-## 🔥 Contributing
+## Official Docs Sync
 
-Contributions to Firipy are welcome! Please submit a pull request or create an issue on the [GitHub page](https://github.com/jeircul/firipy).
+- Checked against [developers.firi.com](https://developers.firi.com/) (Trading API 1.0.0) on **2025-11-21**.
+- When Firi updates their spec, diff it against the endpoint table above.
+- Use the rate-limit guardrails (`DEFAULT_COUNT`, `MAX_COUNT`) to stay within API constraints.
 
-### 🧪 Development Setup
+## Contributing
+
+Contributions welcome! Submit a pull request or create an issue on the [GitHub page](https://github.com/jeircul/firipy).
+
+### Development Setup
 
 ```bash
 git clone https://github.com/jeircul/firipy
 cd firipy
-python -m venv .venv
-source .venv/bin/activate
-pip install -e .[dev]
-pytest -q
+uv sync
+uv run pytest -q
 ```
 
-Optional tooling:
+Linting and type checking:
 
 ```bash
-ruff check .
-mypy firipy
+uv run ruff check .
+uv run ruff format --check .
+uv run ty check
 ```
 
-### 🛠️ go-task shortcuts (optional)
+### go-task shortcuts (optional)
 
-If you have [go-task](https://taskfile.dev) installed you can automate the usual workflows:
+If you have [go-task](https://taskfile.dev) installed:
 
 ```bash
-task install        # ensure venv + install dev extras
-task lint           # ruff checks
-task typecheck      # mypy
-task test           # unit tests
+task install        # uv sync
+task lint           # ruff check
+task format         # ruff format
+task typecheck      # ty check
+task test           # pytest
 task qa             # lint + typecheck + test
 task balance        # print live balances (API_KEY_FIRI required)
 task live-test      # read-only smoke against production (LIVE_FIRI_TESTS=1)
-task build          # sdist + wheel
+task build          # uv build (sdist + wheel)
 task release-check  # qa + build
 # Version bump helpers (patch by default)
 task version PART=minor
-task version NEW=0.1.1
+task version NEW=1.1.0
 task version DRY_RUN=1
 ```
 
 ### Release workflow
 
-1. Make sure `CHANGELOG.md` has everything for the upcoming release under the `Unreleased` section.
-2. Run `task version PART=patch` (set `PART` or `NEW=x.y.z`). This updates `pyproject.toml` and moves the changelog entries into a dated section. Use `DRY_RUN=1` first if you want to preview.
-3. Execute `task release-check` to rerun lint, type-check, tests, and the build.
-4. Commit the version bump, push to `dev`, open a PR into `main`, and merge once CI is green.
-5. Tag `vX.Y.Z` on `main` (or draft a GitHub Release). Publishing the release triggers the `publish.yml` workflow to upload to PyPI.
-6. Optionally run `task live-test` with `LIVE_FIRI_TESTS=1 API_KEY_FIRI=...` before tagging to double-check against production.
-7. Need a quick manual sanity check? `task balance` prints the raw payload returned by `/v2/balances` using your configured `API_KEY_FIRI`.
+1. Document all changes under the `[Unreleased]` section in `CHANGELOG.md`.
+2. Run `task version PART=major|minor|patch` (or `NEW=x.y.z`). This updates `pyproject.toml` and moves changelog entries into a dated section. Preview first with `DRY_RUN=1`.
+3. Run `task release-check` to verify lint, type-check, tests, and build all pass.
+4. Commit the version bump, push to a feature branch, open a PR into `main`, and merge once CI is green.
+5. Tag `vX.Y.Z` on `main` (or draft a GitHub Release). Publishing the release triggers `publish.yml` which uploads to PyPI.
+6. Optionally run `LIVE_FIRI_TESTS=1 task live-test` before tagging to smoke-test against production.
+7. Quick manual check: `task balance` prints balances from `/v2/balances`.
 
-## 📝 Disclaimer
+## Migrating from v0.x
+
+v1.0.0 is async-only and uses `httpx` instead of `requests`. See the [CHANGELOG](CHANGELOG.md#100---2026-03-08) for a full migration guide.
+
+## Disclaimer
 
 This client was developed by Ove Aursland and is not officially associated with Firi.
