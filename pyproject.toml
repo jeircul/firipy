@@ -4,44 +4,74 @@ build-backend = "hatchling.build"
 
 [project]
 name = "firipy"
-version = "0.2.0"
+version = "1.0.0"
 authors = [
-  { name="Ove Aursland", email="jeircul@outlook.com" },
+  { name = "Ove Aursland", email = "jeircul@outlook.com" },
 ]
-description = "Firipy is a Python wrapper for the Firi API. It provides a simple and intuitive way to interact with the Firi cryptocurrency exchange, allowing users to retrieve market data, manage orders, and more. With Firipy, you can easily integrate Firi's features into your Python applications."
+description = "Async Python client for the Firi cryptocurrency exchange API."
 readme = "README.md"
-requires-python = ">=3.10"
-license = {text = "MIT"}
-keywords = ["firi", "crypto", "exchange", "api", "trading"]
+requires-python = ">=3.13"
+license = { text = "MIT" }
+keywords = ["firi", "crypto", "exchange", "api", "trading", "async"]
 classifiers = [
-    "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.13",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Typing :: Typed",
+  "Framework :: AsyncIO",
 ]
 dependencies = [
-    "requests>=2.31,<3",
+  "httpx>=0.28,<1",
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
-  "pytest>=7",
-  "pytest-cov>=4",
-  "mypy>=1.8",
-  "ruff>=0.2.0",
-  "types-requests",
-  "build>=1.2.0",
-  "twine>=5.0.0",
+  "pytest>=8",
+  "pytest-cov>=6",
+  "pytest-asyncio>=0.25",
+  "respx>=0.22",
+  "ruff>=0.11",
+  "ty>=0.0.1a7",
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/jeircul/firipy"
+Homepage = "https://github.com/jeircul/firipy"
 "Bug Tracker" = "https://github.com/jeircul/firipy/issues"
 
+[tool.hatch.build.targets.wheel]
+packages = ["src/firipy"]
+
 [tool.pytest.ini_options]
+asyncio_mode = "auto"
 addopts = "-ra"
 markers = [
-  "integration: marks tests that call the live Firi API (requires LIVE_FIRI_TESTS=1 and API_KEY_FIRI)"
+  "integration: marks tests that call the live Firi API (requires LIVE_FIRI_TESTS=1 and API_KEY_FIRI)",
 ]
 filterwarnings = [
   "default::DeprecationWarning",
 ]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 88
+
+[tool.ruff.lint]
+select = [
+  "E", "W",   # pycodestyle
+  "F",         # pyflakes
+  "I",         # isort
+  "UP",        # pyupgrade
+  "B",         # flake8-bugbear
+  "SIM",       # flake8-simplify
+  "TCH",       # flake8-type-checking
+  "RUF",       # ruff-specific
+  "A",         # flake8-builtins
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["firipy"]
+
+[tool.pyright]
+pythonVersion = "3.13"
+typeCheckingMode = "standard"

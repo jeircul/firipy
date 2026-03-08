@@ -58,19 +58,18 @@
     {
       description: 'Group core Python tooling maintained in pyproject',
       matchManagers: [
-        'pip_setup',
+        'pep621',
       ],
       groupName: 'python tooling',
       semanticCommitType: 'chore',
       semanticCommitScope: 'deps-py',
       matchPackageNames: [
         '/^ruff$/',
-        '/^mypy$/',
+        '/^ty$/',
         '/^pytest$/',
         '/^pytest-cov$/',
-        '/^build$/',
-        '/^twine$/',
-        '/^types-requests$/',
+        '/^pytest-asyncio$/',
+        '/^respx$/',
       ],
     },
     {
@@ -92,19 +91,7 @@
         '/^\\.github\\/workflows\\/.*\\.yml$/',
       ],
       matchStrings: [
-        "python-version: ['\"']?(?<currentValue>\\d+\\.\\d+)['\"']?",
-      ],
-      depNameTemplate: 'python',
-      datasourceTemplate: 'python-version',
-    },
-    {
-      description: 'Update python-version pins found in Taskfile',
-      customType: 'regex',
-      managerFilePatterns: [
-        '/^Taskfile\\.yml$/',
-      ],
-      matchStrings: [
-        "python-version: ['\"']?(?<currentValue>\\d+\\.\\d+)['\"']?",
+        "python install (?<currentValue>\\d+\\.\\d+)",
       ],
       depNameTemplate: 'python',
       datasourceTemplate: 'python-version',

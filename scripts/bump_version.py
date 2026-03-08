@@ -1,5 +1,4 @@
 """Utility to bump project version and roll the changelog release entries."""
-from __future__ import annotations
 
 import argparse
 import datetime as _dt
@@ -12,6 +11,7 @@ CHANGELOG = PROJECT_ROOT / "CHANGELOG.md"
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse CLI arguments for version bumping."""
     parser = argparse.ArgumentParser(description=__doc__)
     group = parser.add_mutually_exclusive_group(required=False)
     group.add_argument(
@@ -39,9 +39,10 @@ def parse_args() -> argparse.Namespace:
 
 
 def bump_semver(current: str, part: str) -> str:
+    """Increment the given semver component and return the new version string."""
     try:
-        major, minor, patch = [int(x) for x in current.split(".")]
-    except ValueError as exc:  # pragma: no cover - defensive parsing
+        major, minor, patch = (int(x) for x in current.split("."))
+    except ValueError as exc:
         raise SystemExit(f"Unrecognized version format: {current}") from exc
     if part == "major":
         major += 1
@@ -56,6 +57,7 @@ def bump_semver(current: str, part: str) -> str:
 
 
 def update_pyproject(new_version: str, *, dry_run: bool) -> None:
+    """Update the version field in pyproject.toml."""
     text = PYPROJECT.read_text(encoding="utf-8")
     pattern = r'version\s*=\s*"(?P<version>[^"]+)"'
     match = re.search(pattern, text)
@@ -69,13 +71,16 @@ def update_pyproject(new_version: str, *, dry_run: bool) -> None:
         text[: match.start("version")] + new_version + text[match.end("version") :]
     )
     if dry_run:
-        print(f"[dry-run] Would update pyproject.toml version: {current} -> {new_version}")
+        print(
+            f"[dry-run] Would update pyproject.toml version: {current} -> {new_version}"
+        )
         return
     PYPROJECT.write_text(new_text, encoding="utf-8")
     print(f"Updated pyproject.toml version: {current} -> {new_version}")
 
 
 def update_changelog(new_version: str, date: str, *, dry_run: bool) -> None:
+    """Move the Unreleased section into a dated release entry."""
     text = CHANGELOG.read_text(encoding="utf-8")
     pattern = r"## \[Unreleased\]\n+(.+?)(?=\n## \[)"
     match = re.search(pattern, text, flags=re.S)
@@ -85,11 +90,11 @@ def update_changelog(new_version: str, date: str, *, dry_run: bool) -> None:
     unreleased_body = match.group(1).rstrip()
     remainder = text[match.end() :]
     if not unreleased_body.strip():
-        print("Warning: Unreleased section is empty; creating placeholder release entry.")
+        print(
+            "Warning: Unreleased section is empty; creating placeholder release entry."
+        )
     new_unreleased = "## [Unreleased]\n\n- Nothing yet.\n\n"
-    new_release = (
-        f"## [{new_version}] - {date}\n\n{unreleased_body}\n\n"
-    )
+    new_release = f"## [{new_version}] - {date}\n\n{unreleased_body}\n\n"
     new_text = preamble + new_unreleased + new_release + remainder
     if dry_run:
         print("[dry-run] Would update CHANGELOG.md with new release header:")
@@ -100,9 +105,10 @@ def update_changelog(new_version: str, date: str, *, dry_run: bool) -> None:
 
 
 def main() -> None:
+    """Bump version and update changelog."""
     args = parse_args()
     text = PYPROJECT.read_text(encoding="utf-8")
-    match = re.search(r'version\s*=\s*"(?P<version>[^\"]+)"', text)
+    match = re.search(r'version\s*=\s*"(?P<version>[^"]+)"', text)
     if not match:
         raise SystemExit("Could not determine current version from pyproject.toml")
     current_version = match.group("version")

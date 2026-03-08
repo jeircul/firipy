@@ -1,10 +1,66 @@
 # Changelog
 
-All notable changes to this project will be documented in this file. This format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and (loosely) [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+All notable changes to this project will be documented in this file. This format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
 - Nothing yet.
+
+## [1.0.0] - 2026-03-08
+
+### Changed
+
+- **Breaking:** Entire client is now async-only. All API methods are `async def`
+  and must be `await`ed. Use `async with FiriAPI(...) as client:` for the
+  context manager.
+- **Breaking:** Replaced `requests` dependency with `httpx`. The constructor
+  parameter `session` has been renamed to `client` (accepts
+  `httpx.AsyncClient`). The `close()` method is now `aclose()`.
+- **Breaking:** Minimum Python version raised from 3.10 to 3.13.
+- Migrated to `src/` package layout with `py.typed` marker for PEP 561
+  typed-package support.
+- Switched project toolchain to `uv` (replaces pip/venv). Dependencies are
+  now locked via `uv.lock`.
+- Replaced `mypy` with `ty` (ruff-native type checker) for type checking.
+- Docstrings converted from NumPy-style to Google-style.
+- All type annotations modernised: `dict[str, Any]` instead of `Dict[str, Any]`,
+  PEP 695 `type` statement for type aliases, `X | None` union syntax.
+- Rate limiting now uses `asyncio.sleep` instead of `time.sleep` to avoid
+  blocking the event loop.
+- CI workflows updated to use `uv` and `astral-sh/setup-uv` action.
+- Taskfile commands updated to use `uv run`.
+
+### Removed
+
+- `requests` dependency (replaced by `httpx`).
+- `mypy`, `types-requests`, `build`, `twine` dev dependencies.
+- Sync context manager (`__enter__`/`__exit__`), use async
+  (`__aenter__`/`__aexit__`) instead.
+- Python 3.10, 3.11, 3.12 support.
+
+### Migration Guide
+
+**Before (v0.2.x):**
+
+```python
+from firipy import FiriAPI
+
+with FiriAPI("your-api-key") as client:
+    markets = client.markets()
+```
+
+**After (v1.0.0):**
+
+```python
+import asyncio
+from firipy import FiriAPI
+
+async def main():
+    async with FiriAPI("your-api-key") as client:
+        markets = await client.markets()
+
+asyncio.run(main())
+```
 
 ## [0.2.0] - 2026-02-07
 
@@ -54,7 +110,7 @@ All notable changes to this project will be documented in this file. This format
 
 ### Deprecated
 
-- CamelCase address methods (`eth_Address`, `dai_Address`, `dot_Address`, `btc_Address`, `ada_Address`) – use snake_case versions.
+- CamelCase address methods (`eth_Address`, `dai_Address`, `dot_Address`, `btc_Address`, `ada_Address`) -- use snake_case versions.
 
 ### Fixed
 

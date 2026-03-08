@@ -5,52 +5,48 @@ applyTo: '**/*.py'
 
 # Python Coding Conventions
 
-## Python Instructions
+## Toolchain
 
-- Write clear and concise comments for each function.
-- Ensure functions have descriptive names and include type hints.
-- Provide docstrings following PEP 257 conventions.
-- Use the `typing` module for type annotations (e.g., `List[str]`, `Dict[str, int]`).
-- Break down complex functions into smaller, more manageable functions.
+- **uv** for package management, virtualenvs, and running commands (`uv sync`, `uv run`).
+- **ruff** for linting and formatting (replaces flake8, isort, black).
+- **ty** for type checking (ruff-native, Rust-based).
+- **pytest** + **pytest-asyncio** for testing with `asyncio_mode = "auto"`.
+- **httpx** for async HTTP (never `requests` in new code).
 
-## General Instructions
+## Type Annotations
 
-- Always prioritize readability and clarity.
-- For algorithm-related code, include explanations of the approach used.
-- Write code with good maintainability practices, including comments on why certain design decisions were made.
-- Handle edge cases and write clear exception handling.
-- For libraries or external dependencies, mention their usage and purpose in comments.
-- Use consistent naming conventions and follow language-specific best practices.
-- Write concise, efficient, and idiomatic code that is also easily understandable.
+- Use **lowercase built-in generics**: `list`, `dict`, `tuple`, `set`, `type`.
+- Use `X | None` union syntax (never `Optional[X]`).
+- Use `X | Y` union syntax (never `Union[X, Y]`).
+- Annotate all function signatures (params + return type).
+- Use PEP 695 `type` statement for type aliases.
+- No `from __future__ import annotations` on Python 3.13+.
 
-## Code Style and Formatting
+## Code Style
 
-- Follow the **PEP 8** style guide for Python.
-- Maintain proper indentation (use 4 spaces for each level of indentation).
-- Ensure lines do not exceed 79 characters.
-- Place function and class docstrings immediately after the `def` or `class` keyword.
-- Use blank lines to separate functions, classes, and code blocks where appropriate.
+- **Google-style docstrings** on all public functions, classes, and modules.
+- Comment **why**, not what.
+- Prefer `dataclasses` or Pydantic `BaseModel` over plain dicts for structured data.
+- Use `pathlib.Path` (never `os.path`).
+- Use `logging` module (never bare `print()` in library code).
+- Use f-strings for all string formatting.
 
-## Edge Cases and Testing
+## Async
 
-- Always include test cases for critical paths of the application.
-- Account for common edge cases like empty inputs, invalid data types, and large datasets.
-- Include comments for edge cases and the expected behavior in those cases.
-- Write unit tests for functions and document them with docstrings explaining the test cases.
+- Prefer `async`/`await` with `asyncio` for I/O-bound work.
+- Use `httpx.AsyncClient` for HTTP.
+- Use `asyncio.TaskGroup` (3.11+) over `asyncio.gather`.
+- Context managers: `async with` for clients and sessions.
 
-## Example of Proper Documentation
+## Testing
 
-```python
-def calculate_area(radius: float) -> float:
-    """
-    Calculate the area of a circle given the radius.
-    
-    Parameters:
-    radius (float): The radius of the circle.
-    
-    Returns:
-    float: The area of the circle, calculated as π * radius^2.
-    """
-    import math
-    return math.pi * radius ** 2
-```
+- Test files: `tests/test_<module>.py`.
+- Use pytest fixtures, `tmp_path`, `monkeypatch` (avoid `unittest.TestCase`).
+- Use `pytest-asyncio` with `asyncio_mode = "auto"`.
+- Mock external services with `respx` (httpx).
+
+## Error Handling
+
+- Catch specific exceptions (never bare `except:`).
+- Use custom exception classes for domain errors.
+- Let unexpected errors propagate.
