@@ -1,57 +1,39 @@
 # firipy
 
 Async Python client for the Firi cryptocurrency exchange API.
+Python 3.13+, httpx, hatchling, src/ layout, py.typed.
 
-## Stack
+## Toolchain (non-negotiable)
 
-- Python 3.13+, `httpx.AsyncClient` (async-only)
-- Build: `hatchling`, `src/` layout, `py.typed`
-- Package manager: `uv` — no pip/poetry/pipenv
-- Linter/formatter: `ruff` — no black/flake8/isort
-- Type checker: `ty` — no mypy/pyright
-- Tests: `pytest` + `pytest-asyncio` (auto mode) + `respx`
+| Purpose | Tool | Never use |
+|---------|------|-----------|
+| Deps/venv | `uv` | pip, poetry, pipenv |
+| Lint + format | `ruff` | black, flake8, isort |
+| Type check | `ty` | mypy, pyright |
+| Tests | `pytest` + `pytest-asyncio` (auto) + `respx` | unittest |
+| HTTP | `httpx.AsyncClient` | requests, aiohttp |
 
 ## Layout
 
-```
-src/firipy/
-  __init__.py     # public API re-exports
-  api.py          # FiriAPI async client class
-tests/
-  test_firipy.py      # unit tests (mocked with respx)
-  test_live_firi.py   # live integration tests (needs API_KEY_FIRI)
-scripts/              # dev/release helpers
-```
+`src/firipy/__init__.py` — public re-exports
+`src/firipy/api.py` — FiriAPI async client (~600 lines)
+`tests/test_firipy.py` — unit tests (respx mocks)
+`tests/test_live_firi.py` — live tests (needs `API_KEY_FIRI`, `LIVE_FIRI_TESTS=1`)
+`scripts/` — dev helpers
 
-## Key Conventions
+## Validate before proposing changes
 
-- Lowercase generics: `list`, `dict`, `tuple` — never `List`, `Dict`
-- `X | None` unions — never `Optional[X]`
-- No `from __future__ import annotations` on 3.13+
-- PEP 695 `type` statement for aliases: `type JSON = dict[str, Any] | list[Any]`
-- Google-style docstrings on public API; skip on private helpers unless non-obvious
+`uv sync && uv run ruff format --check . && uv run ruff check . && uv run ty check && uv run pytest`
+
+## Style
+
+- Lowercase generics, `X | None`, PEP 695 `type` aliases
+- Google docstrings on public API only
 - Comment **why**, not what
-- All async — `async with FiriAPI(...) as client:` context manager pattern
-
-## Commands
-
-```bash
-uv sync                                           # install deps
-uv run pytest                                     # unit tests
-uv run ruff check --fix . && uv run ruff format . # lint + format
-uv run ty check                                   # type check
-LIVE_FIRI_TESTS=1 uv run pytest tests/test_live_firi.py  # live tests
-```
-
-## CI Checks (all must pass before proposing changes)
-
-1. `ruff format --check .`
-2. `ruff check .`
-3. `ty check`
-4. `uv run pytest`
+- `async with FiriAPI(...) as client:` context manager pattern
+- `type JSON = dict[str, Any] | list[Any]` for API returns
 
 ## Release
 
-- Version in `pyproject.toml` `[project].version`
-- Publish via GitHub Actions on tag push (`v*`)
-- PyPI auth: repository secret `PYPI_TOKEN`
+Bump `[project].version` in `pyproject.toml` → commit → tag `v{version}` → push tag.
+GitHub Actions `publish.yml` uploads to PyPI via `PYPI_TOKEN`.
