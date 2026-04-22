@@ -6,6 +6,24 @@ All notable changes to this project will be documented in this file. This format
 
 - Nothing yet.
 
+## [1.1.0] - 2026-04-22
+
+### Fixed
+
+- Injected `httpx.AsyncClient` is no longer mutated (headers) or closed by
+  `FiriAPI`. Ownership stays with the caller; only internally-created clients
+  are closed on `aclose()` / `async with` exit.
+- Removed unused `_api_key` instance attribute that was stored but never read.
+
+### Deprecated
+
+- Per-coin convenience methods (`xrp_withdraw_pending`, `xrp_withdraw_address`,
+  `ltc_withdraw_pending`, `ltc_withdraw_address`, `eth_withdraw_pending`,
+  `eth_address`, `dai_withdraw_pending`, `dai_address`, `dot_address`,
+  `dot_withdraw_pending`, `btc_withdraw_pending`, `btc_address`,
+  `ada_withdraw_pending`, `ada_address`) now emit `DeprecationWarning`.
+  Use `coin_address(symbol)` / `coin_withdraw_pending(symbol)` instead.
+
 ## [1.0.0] - 2026-03-08
 
 ### Changed

@@ -69,17 +69,15 @@ class FiriAPI:
         client: httpx.AsyncClient | None = None,
     ):
         self.apiurl = base_url.rstrip("/")
+        # Track ownership so we only close clients we created ourselves.
+        self._owns_client = client is None
         self.client = client or httpx.AsyncClient(
             headers={"miraiex-access-key": api_key},
             timeout=timeout,
         )
-        # Ensure header is set even when a pre-configured client is provided
-        if client is not None:
-            self.client.headers["miraiex-access-key"] = api_key
         self.rate_limit = rate_limit
         self.timeout = timeout
         self.raise_on_error = raise_on_error
-        self._api_key = api_key
 
     # --- Context manager helpers -------------------------------------------
 
@@ -97,8 +95,13 @@ class FiriAPI:
         await self.aclose()
 
     async def aclose(self) -> None:
-        """Close the underlying httpx client."""
-        await self.client.aclose()
+        """Close the underlying httpx client.
+
+        No-op when the client was supplied by the caller — ownership stays
+        with the caller in that case.
+        """
+        if self._owns_client:
+            await self.client.aclose()
 
     # --- Representation ----------------------------------------------------
 
@@ -386,59 +389,192 @@ class FiriAPI:
     # --- Per-coin convenience methods --------------------------------------
 
     async def xrp_withdraw_pending(self) -> JSON:
-        """Get pending XRP withdrawals."""
+        """Get pending XRP withdrawals.
+
+        .. deprecated::
+            Use ``coin_withdraw_pending("XRP")`` instead.
+        """
+        warnings.warn(
+            "xrp_withdraw_pending() is deprecated; "
+            "use coin_withdraw_pending('XRP') instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return await self.coin_withdraw_pending("XRP")
 
     async def xrp_withdraw_address(self) -> JSON:
-        """Get the user's XRP deposit address."""
+        """Get the user's XRP deposit address.
+
+        .. deprecated::
+            Use ``coin_address("XRP")`` instead.
+        """
+        warnings.warn(
+            "xrp_withdraw_address() is deprecated; use coin_address('XRP') instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return await self.coin_address("XRP")
 
     async def ltc_withdraw_pending(self) -> JSON:
-        """Get pending LTC withdrawals."""
+        """Get pending LTC withdrawals.
+
+        .. deprecated::
+            Use ``coin_withdraw_pending("LTC")`` instead.
+        """
+        warnings.warn(
+            "ltc_withdraw_pending() is deprecated; "
+            "use coin_withdraw_pending('LTC') instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return await self.coin_withdraw_pending("LTC")
 
     async def ltc_withdraw_address(self) -> JSON:
-        """Get the user's LTC deposit address."""
+        """Get the user's LTC deposit address.
+
+        .. deprecated::
+            Use ``coin_address("LTC")`` instead.
+        """
+        warnings.warn(
+            "ltc_withdraw_address() is deprecated; use coin_address('LTC') instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return await self.coin_address("LTC")
 
     async def eth_withdraw_pending(self) -> JSON:
-        """Get pending ETH withdrawals."""
+        """Get pending ETH withdrawals.
+
+        .. deprecated::
+            Use ``coin_withdraw_pending("ETH")`` instead.
+        """
+        warnings.warn(
+            "eth_withdraw_pending() is deprecated; "
+            "use coin_withdraw_pending('ETH') instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return await self.coin_withdraw_pending("ETH")
 
     async def eth_address(self) -> JSON:
-        """Get the user's ETH deposit address."""
+        """Get the user's ETH deposit address.
+
+        .. deprecated::
+            Use ``coin_address("ETH")`` instead.
+        """
+        warnings.warn(
+            "eth_address() is deprecated; use coin_address('ETH') instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return await self.coin_address("ETH")
 
     async def dai_withdraw_pending(self) -> JSON:
-        """Get pending DAI withdrawals."""
+        """Get pending DAI withdrawals.
+
+        .. deprecated::
+            Use ``coin_withdraw_pending("DAI")`` instead.
+        """
+        warnings.warn(
+            "dai_withdraw_pending() is deprecated; "
+            "use coin_withdraw_pending('DAI') instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return await self.coin_withdraw_pending("DAI")
 
     async def dai_address(self) -> JSON:
-        """Get the user's DAI deposit address."""
+        """Get the user's DAI deposit address.
+
+        .. deprecated::
+            Use ``coin_address("DAI")`` instead.
+        """
+        warnings.warn(
+            "dai_address() is deprecated; use coin_address('DAI') instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return await self.coin_address("DAI")
 
     async def dot_address(self) -> JSON:
-        """Get the user's DOT deposit address."""
+        """Get the user's DOT deposit address.
+
+        .. deprecated::
+            Use ``coin_address("DOT")`` instead.
+        """
+        warnings.warn(
+            "dot_address() is deprecated; use coin_address('DOT') instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return await self.coin_address("DOT")
 
     async def dot_withdraw_pending(self) -> JSON:
-        """Get pending DOT withdrawals."""
+        """Get pending DOT withdrawals.
+
+        .. deprecated::
+            Use ``coin_withdraw_pending("DOT")`` instead.
+        """
+        warnings.warn(
+            "dot_withdraw_pending() is deprecated; "
+            "use coin_withdraw_pending('DOT') instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return await self.coin_withdraw_pending("DOT")
 
     async def btc_withdraw_pending(self) -> JSON:
-        """Get pending BTC withdrawals."""
+        """Get pending BTC withdrawals.
+
+        .. deprecated::
+            Use ``coin_withdraw_pending("BTC")`` instead.
+        """
+        warnings.warn(
+            "btc_withdraw_pending() is deprecated; "
+            "use coin_withdraw_pending('BTC') instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return await self.coin_withdraw_pending("BTC")
 
     async def btc_address(self) -> JSON:
-        """Get the user's BTC deposit address."""
+        """Get the user's BTC deposit address.
+
+        .. deprecated::
+            Use ``coin_address("BTC")`` instead.
+        """
+        warnings.warn(
+            "btc_address() is deprecated; use coin_address('BTC') instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return await self.coin_address("BTC")
 
     async def ada_withdraw_pending(self) -> JSON:
-        """Get pending ADA withdrawals."""
+        """Get pending ADA withdrawals.
+
+        .. deprecated::
+            Use ``coin_withdraw_pending("ADA")`` instead.
+        """
+        warnings.warn(
+            "ada_withdraw_pending() is deprecated; "
+            "use coin_withdraw_pending('ADA') instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return await self.coin_withdraw_pending("ADA")
 
     async def ada_address(self) -> JSON:
-        """Get the user's ADA deposit address."""
+        """Get the user's ADA deposit address.
+
+        .. deprecated::
+            Use ``coin_address("ADA")`` instead.
+        """
+        warnings.warn(
+            "ada_address() is deprecated; use coin_address('ADA') instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return await self.coin_address("ADA")
 
     # --- Deposits ----------------------------------------------------------
