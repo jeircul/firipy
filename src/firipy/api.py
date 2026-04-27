@@ -69,17 +69,27 @@ class FiriAPI:
         client: httpx.AsyncClient | None = None,
     ):
         self.apiurl = base_url.rstrip("/")
-        self.client = client or httpx.AsyncClient(
-            headers={"miraiex-access-key": api_key},
-            timeout=timeout,
-        )
-        # Ensure header is set even when a pre-configured client is provided
-        if client is not None:
-            self.client.headers["miraiex-access-key"] = api_key
+        # Track ownership so we only close clients we created ourselves.
+        self._owns_client = client is None
+        if client is None:
+            self.client = httpx.AsyncClient(
+                headers={"miraiex-access-key": api_key},
+                timeout=timeout,
+            )
+        else:
+            # Caller owns this client and is responsible for auth headers.
+            # Fail fast if the required auth header is absent rather than
+            # letting requests silently return 401s at call time.
+            if "miraiex-access-key" not in client.headers:
+                raise ValueError(
+                    "Injected client is missing the 'miraiex-access-key' header. "
+                    "Set it before passing the client to FiriAPI, or omit 'client' "
+                    "and pass 'api_key' to let FiriAPI create its own client."
+                )
+            self.client = client
         self.rate_limit = rate_limit
         self.timeout = timeout
         self.raise_on_error = raise_on_error
-        self._api_key = api_key
 
     # --- Context manager helpers -------------------------------------------
 
@@ -97,8 +107,13 @@ class FiriAPI:
         await self.aclose()
 
     async def aclose(self) -> None:
-        """Close the underlying httpx client."""
-        await self.client.aclose()
+        """Close the underlying httpx client.
+
+        No-op when the client was supplied by the caller — ownership stays
+        with the caller in that case.
+        """
+        if self._owns_client:
+            await self.client.aclose()
 
     # --- Representation ----------------------------------------------------
 
@@ -384,61 +399,135 @@ class FiriAPI:
         return await self.get("/v2/markets/tickers")
 
     # --- Per-coin convenience methods --------------------------------------
+    # All methods below are deprecated. stacklevel=2 points the warning at
+    # the direct caller of the deprecated method. If any of these are ever
+    # called internally (from another method on this class), stacklevel must
+    # be incremented accordingly — none are called internally today.
 
     async def xrp_withdraw_pending(self) -> JSON:
-        """Get pending XRP withdrawals."""
+        """Pending XRP withdrawals. Deprecated: use coin_withdraw_pending('XRP')."""
+        warnings.warn(
+            "xrp_withdraw_pending() is deprecated; use coin_withdraw_pending('XRP') instead.",  # noqa: E501
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return await self.coin_withdraw_pending("XRP")
 
     async def xrp_withdraw_address(self) -> JSON:
-        """Get the user's XRP deposit address."""
+        """XRP deposit address. Deprecated: use coin_address('XRP')."""
+        warnings.warn(
+            "xrp_withdraw_address() is deprecated; use coin_address('XRP') instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return await self.coin_address("XRP")
 
     async def ltc_withdraw_pending(self) -> JSON:
-        """Get pending LTC withdrawals."""
+        """Pending LTC withdrawals. Deprecated: use coin_withdraw_pending('LTC')."""
+        warnings.warn(
+            "ltc_withdraw_pending() is deprecated; use coin_withdraw_pending('LTC') instead.",  # noqa: E501
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return await self.coin_withdraw_pending("LTC")
 
     async def ltc_withdraw_address(self) -> JSON:
-        """Get the user's LTC deposit address."""
+        """LTC deposit address. Deprecated: use coin_address('LTC')."""
+        warnings.warn(
+            "ltc_withdraw_address() is deprecated; use coin_address('LTC') instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return await self.coin_address("LTC")
 
     async def eth_withdraw_pending(self) -> JSON:
-        """Get pending ETH withdrawals."""
+        """Pending ETH withdrawals. Deprecated: use coin_withdraw_pending('ETH')."""
+        warnings.warn(
+            "eth_withdraw_pending() is deprecated; use coin_withdraw_pending('ETH') instead.",  # noqa: E501
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return await self.coin_withdraw_pending("ETH")
 
     async def eth_address(self) -> JSON:
-        """Get the user's ETH deposit address."""
+        """ETH deposit address. Deprecated: use coin_address('ETH')."""
+        warnings.warn(
+            "eth_address() is deprecated; use coin_address('ETH') instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return await self.coin_address("ETH")
 
     async def dai_withdraw_pending(self) -> JSON:
-        """Get pending DAI withdrawals."""
+        """Pending DAI withdrawals. Deprecated: use coin_withdraw_pending('DAI')."""
+        warnings.warn(
+            "dai_withdraw_pending() is deprecated; use coin_withdraw_pending('DAI') instead.",  # noqa: E501
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return await self.coin_withdraw_pending("DAI")
 
     async def dai_address(self) -> JSON:
-        """Get the user's DAI deposit address."""
+        """DAI deposit address. Deprecated: use coin_address('DAI')."""
+        warnings.warn(
+            "dai_address() is deprecated; use coin_address('DAI') instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return await self.coin_address("DAI")
 
     async def dot_address(self) -> JSON:
-        """Get the user's DOT deposit address."""
+        """DOT deposit address. Deprecated: use coin_address('DOT')."""
+        warnings.warn(
+            "dot_address() is deprecated; use coin_address('DOT') instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return await self.coin_address("DOT")
 
     async def dot_withdraw_pending(self) -> JSON:
-        """Get pending DOT withdrawals."""
+        """Pending DOT withdrawals. Deprecated: use coin_withdraw_pending('DOT')."""
+        warnings.warn(
+            "dot_withdraw_pending() is deprecated; use coin_withdraw_pending('DOT') instead.",  # noqa: E501
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return await self.coin_withdraw_pending("DOT")
 
     async def btc_withdraw_pending(self) -> JSON:
-        """Get pending BTC withdrawals."""
+        """Pending BTC withdrawals. Deprecated: use coin_withdraw_pending('BTC')."""
+        warnings.warn(
+            "btc_withdraw_pending() is deprecated; use coin_withdraw_pending('BTC') instead.",  # noqa: E501
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return await self.coin_withdraw_pending("BTC")
 
     async def btc_address(self) -> JSON:
-        """Get the user's BTC deposit address."""
+        """BTC deposit address. Deprecated: use coin_address('BTC')."""
+        warnings.warn(
+            "btc_address() is deprecated; use coin_address('BTC') instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return await self.coin_address("BTC")
 
     async def ada_withdraw_pending(self) -> JSON:
-        """Get pending ADA withdrawals."""
+        """Pending ADA withdrawals. Deprecated: use coin_withdraw_pending('ADA')."""
+        warnings.warn(
+            "ada_withdraw_pending() is deprecated; use coin_withdraw_pending('ADA') instead.",  # noqa: E501
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return await self.coin_withdraw_pending("ADA")
 
     async def ada_address(self) -> JSON:
-        """Get the user's ADA deposit address."""
+        """ADA deposit address. Deprecated: use coin_address('ADA')."""
+        warnings.warn(
+            "ada_address() is deprecated; use coin_address('ADA') instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return await self.coin_address("ADA")
 
     # --- Deposits ----------------------------------------------------------

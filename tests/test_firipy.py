@@ -191,3 +191,50 @@ async def test_context_manager() -> None:
         assert client is not None
     # After exit, the client should be closed
     assert client.client.is_closed
+
+
+async def test_injected_client_not_closed_by_aclose() -> None:
+    """aclose() must be a no-op when the client was injected by the caller."""
+    inner = httpx.AsyncClient(headers={"miraiex-access-key": API_KEY})
+    api = FiriAPI(API_KEY, rate_limit=0, client=inner)
+    await api.aclose()
+    assert not inner.is_closed, "FiriAPI must not close a caller-owned client"
+    await inner.aclose()
+
+
+async def test_injected_client_headers_not_mutated() -> None:
+    """FiriAPI must not add or change headers on an injected client."""
+    inner = httpx.AsyncClient(headers={"miraiex-access-key": "caller-set-value"})
+    original = dict(inner.headers)
+    FiriAPI("different-api-key", rate_limit=0, client=inner)
+    assert dict(inner.headers) == original, (
+        "FiriAPI must not mutate headers on a caller-owned client"
+    )
+    await inner.aclose()
+
+
+async def test_injected_client_missing_auth_header_raises() -> None:
+    """FiriAPI must raise ValueError when injected client has no auth header."""
+    bare = httpx.AsyncClient()
+    with pytest.raises(ValueError, match="miraiex-access-key"):
+        FiriAPI(API_KEY, rate_limit=0, client=bare)
+    await bare.aclose()
+
+
+@pytest.mark.parametrize(
+    "method_name,endpoint",
+    [
+        ("eth_address", "/v2/ETH/address"),
+        ("btc_withdraw_pending", "/v2/BTC/withdraw/pending"),
+        ("ada_address", "/v2/ADA/address"),
+    ],
+)
+@respx.mock
+async def test_per_coin_helpers_emit_deprecation_warning(
+    method_name: str, endpoint: str
+) -> None:
+    """Per-coin convenience methods must emit DeprecationWarning."""
+    api = FiriAPI(API_KEY, rate_limit=0)
+    respx.get(f"{BASE_URL}{endpoint}").mock(return_value=httpx.Response(200, json={}))
+    with pytest.warns(DeprecationWarning):
+        await getattr(api, method_name)()
