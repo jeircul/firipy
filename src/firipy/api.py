@@ -405,25 +405,16 @@ class FiriAPI:
     # be incremented accordingly — none are called internally today.
 
     async def xrp_withdraw_pending(self) -> JSON:
-        """Get pending XRP withdrawals.
-
-        .. deprecated::
-            Use ``coin_withdraw_pending("XRP")`` instead.
-        """
+        """Pending XRP withdrawals. Deprecated: use coin_withdraw_pending('XRP')."""
         warnings.warn(
-            "xrp_withdraw_pending() is deprecated; "
-            "use coin_withdraw_pending('XRP') instead.",
+            "xrp_withdraw_pending() is deprecated; use coin_withdraw_pending('XRP') instead.",  # noqa: E501
             DeprecationWarning,
             stacklevel=2,
         )
         return await self.coin_withdraw_pending("XRP")
 
     async def xrp_withdraw_address(self) -> JSON:
-        """Get the user's XRP deposit address.
-
-        .. deprecated::
-            Use ``coin_address("XRP")`` instead.
-        """
+        """XRP deposit address. Deprecated: use coin_address('XRP')."""
         warnings.warn(
             "xrp_withdraw_address() is deprecated; use coin_address('XRP') instead.",
             DeprecationWarning,
@@ -432,25 +423,16 @@ class FiriAPI:
         return await self.coin_address("XRP")
 
     async def ltc_withdraw_pending(self) -> JSON:
-        """Get pending LTC withdrawals.
-
-        .. deprecated::
-            Use ``coin_withdraw_pending("LTC")`` instead.
-        """
+        """Pending LTC withdrawals. Deprecated: use coin_withdraw_pending('LTC')."""
         warnings.warn(
-            "ltc_withdraw_pending() is deprecated; "
-            "use coin_withdraw_pending('LTC') instead.",
+            "ltc_withdraw_pending() is deprecated; use coin_withdraw_pending('LTC') instead.",  # noqa: E501
             DeprecationWarning,
             stacklevel=2,
         )
         return await self.coin_withdraw_pending("LTC")
 
     async def ltc_withdraw_address(self) -> JSON:
-        """Get the user's LTC deposit address.
-
-        .. deprecated::
-            Use ``coin_address("LTC")`` instead.
-        """
+        """LTC deposit address. Deprecated: use coin_address('LTC')."""
         warnings.warn(
             "ltc_withdraw_address() is deprecated; use coin_address('LTC') instead.",
             DeprecationWarning,
@@ -459,25 +441,16 @@ class FiriAPI:
         return await self.coin_address("LTC")
 
     async def eth_withdraw_pending(self) -> JSON:
-        """Get pending ETH withdrawals.
-
-        .. deprecated::
-            Use ``coin_withdraw_pending("ETH")`` instead.
-        """
+        """Pending ETH withdrawals. Deprecated: use coin_withdraw_pending('ETH')."""
         warnings.warn(
-            "eth_withdraw_pending() is deprecated; "
-            "use coin_withdraw_pending('ETH') instead.",
+            "eth_withdraw_pending() is deprecated; use coin_withdraw_pending('ETH') instead.",  # noqa: E501
             DeprecationWarning,
             stacklevel=2,
         )
         return await self.coin_withdraw_pending("ETH")
 
     async def eth_address(self) -> JSON:
-        """Get the user's ETH deposit address.
-
-        .. deprecated::
-            Use ``coin_address("ETH")`` instead.
-        """
+        """ETH deposit address. Deprecated: use coin_address('ETH')."""
         warnings.warn(
             "eth_address() is deprecated; use coin_address('ETH') instead.",
             DeprecationWarning,
@@ -486,25 +459,16 @@ class FiriAPI:
         return await self.coin_address("ETH")
 
     async def dai_withdraw_pending(self) -> JSON:
-        """Get pending DAI withdrawals.
-
-        .. deprecated::
-            Use ``coin_withdraw_pending("DAI")`` instead.
-        """
+        """Pending DAI withdrawals. Deprecated: use coin_withdraw_pending('DAI')."""
         warnings.warn(
-            "dai_withdraw_pending() is deprecated; "
-            "use coin_withdraw_pending('DAI') instead.",
+            "dai_withdraw_pending() is deprecated; use coin_withdraw_pending('DAI') instead.",  # noqa: E501
             DeprecationWarning,
             stacklevel=2,
         )
         return await self.coin_withdraw_pending("DAI")
 
     async def dai_address(self) -> JSON:
-        """Get the user's DAI deposit address.
-
-        .. deprecated::
-            Use ``coin_address("DAI")`` instead.
-        """
+        """DAI deposit address. Deprecated: use coin_address('DAI')."""
         warnings.warn(
             "dai_address() is deprecated; use coin_address('DAI') instead.",
             DeprecationWarning,
@@ -513,11 +477,7 @@ class FiriAPI:
         return await self.coin_address("DAI")
 
     async def dot_address(self) -> JSON:
-        """Get the user's DOT deposit address.
-
-        .. deprecated::
-            Use ``coin_address("DOT")`` instead.
-        """
+        """DOT deposit address. Deprecated: use coin_address('DOT')."""
         warnings.warn(
             "dot_address() is deprecated; use coin_address('DOT') instead.",
             DeprecationWarning,
@@ -526,39 +486,25 @@ class FiriAPI:
         return await self.coin_address("DOT")
 
     async def dot_withdraw_pending(self) -> JSON:
-        """Get pending DOT withdrawals.
-
-        .. deprecated::
-            Use ``coin_withdraw_pending("DOT")`` instead.
-        """
+        """Pending DOT withdrawals. Deprecated: use coin_withdraw_pending('DOT')."""
         warnings.warn(
-            "dot_withdraw_pending() is deprecated; "
-            "use coin_withdraw_pending('DOT') instead.",
+            "dot_withdraw_pending() is deprecated; use coin_withdraw_pending('DOT') instead.",  # noqa: E501
             DeprecationWarning,
             stacklevel=2,
         )
         return await self.coin_withdraw_pending("DOT")
 
     async def btc_withdraw_pending(self) -> JSON:
-        """Get pending BTC withdrawals.
-
-        .. deprecated::
-            Use ``coin_withdraw_pending("BTC")`` instead.
-        """
+        """Pending BTC withdrawals. Deprecated: use coin_withdraw_pending('BTC')."""
         warnings.warn(
-            "btc_withdraw_pending() is deprecated; "
-            "use coin_withdraw_pending('BTC') instead.",
+            "btc_withdraw_pending() is deprecated; use coin_withdraw_pending('BTC') instead.",  # noqa: E501
             DeprecationWarning,
             stacklevel=2,
         )
         return await self.coin_withdraw_pending("BTC")
 
     async def btc_address(self) -> JSON:
-        """Get the user's BTC deposit address.
-
-        .. deprecated::
-            Use ``coin_address("BTC")`` instead.
-        """
+        """BTC deposit address. Deprecated: use coin_address('BTC')."""
         warnings.warn(
             "btc_address() is deprecated; use coin_address('BTC') instead.",
             DeprecationWarning,
@@ -567,25 +513,16 @@ class FiriAPI:
         return await self.coin_address("BTC")
 
     async def ada_withdraw_pending(self) -> JSON:
-        """Get pending ADA withdrawals.
-
-        .. deprecated::
-            Use ``coin_withdraw_pending("ADA")`` instead.
-        """
+        """Pending ADA withdrawals. Deprecated: use coin_withdraw_pending('ADA')."""
         warnings.warn(
-            "ada_withdraw_pending() is deprecated; "
-            "use coin_withdraw_pending('ADA') instead.",
+            "ada_withdraw_pending() is deprecated; use coin_withdraw_pending('ADA') instead.",  # noqa: E501
             DeprecationWarning,
             stacklevel=2,
         )
         return await self.coin_withdraw_pending("ADA")
 
     async def ada_address(self) -> JSON:
-        """Get the user's ADA deposit address.
-
-        .. deprecated::
-            Use ``coin_address("ADA")`` instead.
-        """
+        """ADA deposit address. Deprecated: use coin_address('ADA')."""
         warnings.warn(
             "ada_address() is deprecated; use coin_address('ADA') instead.",
             DeprecationWarning,
