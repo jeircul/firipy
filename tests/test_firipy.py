@@ -204,10 +204,10 @@ async def test_injected_client_not_closed_by_aclose() -> None:
 
 async def test_injected_client_headers_not_mutated() -> None:
     """FiriAPI must not add or change headers on an injected client."""
-    inner = httpx.AsyncClient(headers={"miraiex-access-key": API_KEY})
-    original_keys = set(inner.headers.keys())
-    FiriAPI(API_KEY, rate_limit=0, client=inner)
-    assert set(inner.headers.keys()) == original_keys, (
+    inner = httpx.AsyncClient(headers={"miraiex-access-key": "caller-set-value"})
+    original = dict(inner.headers)
+    FiriAPI("different-api-key", rate_limit=0, client=inner)
+    assert dict(inner.headers) == original, (
         "FiriAPI must not mutate headers on a caller-owned client"
     )
     await inner.aclose()
@@ -222,24 +222,19 @@ async def test_injected_client_missing_auth_header_raises() -> None:
 
 
 @pytest.mark.parametrize(
-    "method_name,coin",
+    "method_name,endpoint",
     [
-        ("eth_address", "ETH"),
-        ("btc_withdraw_pending", "BTC"),
-        ("ada_address", "ADA"),
+        ("eth_address", "/v2/ETH/address"),
+        ("btc_withdraw_pending", "/v2/BTC/withdraw/pending"),
+        ("ada_address", "/v2/ADA/address"),
     ],
 )
 @respx.mock
 async def test_per_coin_helpers_emit_deprecation_warning(
-    method_name: str, coin: str
+    method_name: str, endpoint: str
 ) -> None:
     """Per-coin convenience methods must emit DeprecationWarning."""
     api = FiriAPI(API_KEY, rate_limit=0)
-    endpoint = (
-        f"{BASE_URL}/v2/{coin}/address"
-        if "address" in method_name
-        else f"{BASE_URL}/v2/{coin}/withdraw/pending"
-    )
-    respx.get(endpoint).mock(return_value=httpx.Response(200, json={}))
+    respx.get(f"{BASE_URL}{endpoint}").mock(return_value=httpx.Response(200, json={}))
     with pytest.warns(DeprecationWarning):
         await getattr(api, method_name)()
