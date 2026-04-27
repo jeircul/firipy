@@ -71,10 +71,22 @@ class FiriAPI:
         self.apiurl = base_url.rstrip("/")
         # Track ownership so we only close clients we created ourselves.
         self._owns_client = client is None
-        self.client = client or httpx.AsyncClient(
-            headers={"miraiex-access-key": api_key},
-            timeout=timeout,
-        )
+        if client is None:
+            self.client = httpx.AsyncClient(
+                headers={"miraiex-access-key": api_key},
+                timeout=timeout,
+            )
+        else:
+            # Caller owns this client and is responsible for auth headers.
+            # Fail fast if the required auth header is absent rather than
+            # letting requests silently return 401s at call time.
+            if "miraiex-access-key" not in client.headers:
+                raise ValueError(
+                    "Injected client is missing the 'miraiex-access-key' header. "
+                    "Set it before passing the client to FiriAPI, or omit 'client' "
+                    "and pass 'api_key' to let FiriAPI create its own client."
+                )
+            self.client = client
         self.rate_limit = rate_limit
         self.timeout = timeout
         self.raise_on_error = raise_on_error
@@ -387,6 +399,10 @@ class FiriAPI:
         return await self.get("/v2/markets/tickers")
 
     # --- Per-coin convenience methods --------------------------------------
+    # All methods below are deprecated. stacklevel=2 points the warning at
+    # the direct caller of the deprecated method. If any of these are ever
+    # called internally (from another method on this class), stacklevel must
+    # be incremented accordingly — none are called internally today.
 
     async def xrp_withdraw_pending(self) -> JSON:
         """Get pending XRP withdrawals.

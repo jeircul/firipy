@@ -191,3 +191,55 @@ async def test_context_manager() -> None:
         assert client is not None
     # After exit, the client should be closed
     assert client.client.is_closed
+
+
+async def test_injected_client_not_closed_by_aclose() -> None:
+    """aclose() must be a no-op when the client was injected by the caller."""
+    inner = httpx.AsyncClient(headers={"miraiex-access-key": API_KEY})
+    api = FiriAPI(API_KEY, rate_limit=0, client=inner)
+    await api.aclose()
+    assert not inner.is_closed, "FiriAPI must not close a caller-owned client"
+    await inner.aclose()
+
+
+async def test_injected_client_headers_not_mutated() -> None:
+    """FiriAPI must not add or change headers on an injected client."""
+    inner = httpx.AsyncClient(headers={"miraiex-access-key": API_KEY})
+    original_keys = set(inner.headers.keys())
+    FiriAPI(API_KEY, rate_limit=0, client=inner)
+    assert set(inner.headers.keys()) == original_keys, (
+        "FiriAPI must not mutate headers on a caller-owned client"
+    )
+    await inner.aclose()
+
+
+async def test_injected_client_missing_auth_header_raises() -> None:
+    """FiriAPI must raise ValueError when injected client has no auth header."""
+    bare = httpx.AsyncClient()
+    with pytest.raises(ValueError, match="miraiex-access-key"):
+        FiriAPI(API_KEY, rate_limit=0, client=bare)
+    await bare.aclose()
+
+
+@pytest.mark.parametrize(
+    "method_name,coin",
+    [
+        ("eth_address", "ETH"),
+        ("btc_withdraw_pending", "BTC"),
+        ("ada_address", "ADA"),
+    ],
+)
+@respx.mock
+async def test_per_coin_helpers_emit_deprecation_warning(
+    method_name: str, coin: str
+) -> None:
+    """Per-coin convenience methods must emit DeprecationWarning."""
+    api = FiriAPI(API_KEY, rate_limit=0)
+    endpoint = (
+        f"{BASE_URL}/v2/{coin}/address"
+        if "address" in method_name
+        else f"{BASE_URL}/v2/{coin}/withdraw/pending"
+    )
+    respx.get(endpoint).mock(return_value=httpx.Response(200, json={}))
+    with pytest.warns(DeprecationWarning):
+        await getattr(api, method_name)()
