@@ -176,7 +176,7 @@ Per-asset convenience methods remain available.
 
 ## 🔗 Official Docs Sync
 
-- Checked against [developers.firi.com](https://developers.firi.com/) (Trading API 1.0.0) on **2025-11-21**.
+- Checked against [developers.firi.com](https://developers.firi.com/) (Trading API 1.0.0) on **2026-07-28**.
 - When Firi updates their spec, diff it against the endpoint table above.
 - Use the rate-limit guardrails (`DEFAULT_COUNT`, `MAX_COUNT`) to stay within API constraints.
 
