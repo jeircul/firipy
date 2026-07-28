@@ -21,3 +21,4 @@ coverage.xml
 
 # macOS noise
 .DS_Store
+.env
