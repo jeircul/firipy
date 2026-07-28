@@ -326,9 +326,7 @@ class FiriAPI:
                 return
             except ValueError:
                 pass
-        delay = random.uniform(
-            0, min(self.backoff_base * 2**attempt, self.max_backoff)
-        )
+        delay = random.uniform(0, min(self.backoff_base * 2**attempt, self.max_backoff))
         await asyncio.sleep(delay)
 
     async def get(self, endpoint: str, **kwargs: Any) -> JSON:
