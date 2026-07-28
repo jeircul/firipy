@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. This format
 
 ## [Unreleased]
 
+- Nothing yet.
+
+## [1.2.0] - 2026-07-28
+
 ### Added
 
 - HMAC request signing: pass `secret_key` and `client_id` to `FiriAPI` to sign
@@ -38,6 +42,7 @@ All notable changes to this project will be documented in this file. This format
   lock to respect the interval instead of all sleeping in parallel.
 - Clarified that `MAX_COUNT` (10,000) is a firipy client-side guardrail, not a
   limit enforced by the Firi API itself.
+
 
 ## [1.1.0] - 2026-04-22
 
