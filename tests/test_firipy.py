@@ -1,10 +1,19 @@
 """Unit tests for :mod:`firipy` using ``respx`` to mock HTTP calls."""
 
+import asyncio
+import time
+
 import httpx
 import pytest
 import respx
 
 from firipy import FiriAPI, FiriAPIError, FiriHTTPError
+from firipy.api import (
+    ACCESS_KEY_HEADER,
+    LEGACY_ACCESS_KEY_HEADER,
+    FiriAuthError,
+    FiriRateLimitError,
+)
 
 API_KEY = "test-api-key"
 BASE_URL = "https://api.firi.com"
@@ -238,3 +247,147 @@ async def test_per_coin_helpers_emit_deprecation_warning(
     respx.get(f"{BASE_URL}{endpoint}").mock(return_value=httpx.Response(200, json={}))
     with pytest.warns(DeprecationWarning):
         await getattr(api, method_name)()
+
+
+async def test_self_created_client_has_both_access_key_headers() -> None:
+    """A self-created client must send both current and legacy auth headers."""
+    api = FiriAPI(API_KEY, rate_limit=0)
+    assert api.client.headers[ACCESS_KEY_HEADER] == API_KEY
+    assert api.client.headers[LEGACY_ACCESS_KEY_HEADER] == API_KEY
+    await api.aclose()
+
+
+async def test_injected_client_with_only_legacy_header_is_accepted() -> None:
+    """Injecting a client with only the legacy header must not raise."""
+    inner = httpx.AsyncClient(headers={LEGACY_ACCESS_KEY_HEADER: API_KEY})
+    api = FiriAPI(API_KEY, rate_limit=0, client=inner)
+    assert api.client is inner
+    await inner.aclose()
+
+
+@respx.mock
+async def test_first_request_not_delayed() -> None:
+    """The first request must not be delayed by the pacing gate."""
+    respx.get(f"{BASE_URL}/time").mock(
+        return_value=httpx.Response(200, json={"serverTime": "now"})
+    )
+    client = FiriAPI(API_KEY, rate_limit=0.2, base_url=BASE_URL)
+    start = time.monotonic()
+    await client.time()
+    elapsed = time.monotonic() - start
+    assert elapsed < 0.15
+    await client.aclose()
+
+
+@respx.mock
+async def test_concurrent_requests_are_paced() -> None:
+    """Concurrent requests must be serialized by the pacing gate, not parallel."""
+    respx.get(f"{BASE_URL}/time").mock(
+        return_value=httpx.Response(200, json={"serverTime": "now"})
+    )
+    client = FiriAPI(API_KEY, rate_limit=0.05, base_url=BASE_URL)
+    start = time.monotonic()
+    await asyncio.gather(client.time(), client.time(), client.time())
+    elapsed = time.monotonic() - start
+    assert elapsed >= 0.08
+    await client.aclose()
+
+
+@respx.mock
+async def test_get_retries_once_after_503() -> None:
+    """A GET returning 503 then 200 must succeed after one retry."""
+    route = respx.get(f"{BASE_URL}/v2/markets").mock(
+        side_effect=[
+            httpx.Response(503, json={"message": "unavailable"}),
+            httpx.Response(200, json={"ok": True}),
+        ]
+    )
+    client = FiriAPI(
+        API_KEY, rate_limit=0, base_url=BASE_URL, max_retries=2, backoff_base=0.01
+    )
+    result = await client.get("/v2/markets")
+    assert result == {"ok": True}
+    assert route.call_count == 2
+    await client.aclose()
+
+
+@respx.mock
+async def test_get_honors_retry_after_on_429() -> None:
+    """A 429 with a numeric Retry-After header must be honored on retry."""
+    route = respx.get(f"{BASE_URL}/v2/markets").mock(
+        side_effect=[
+            httpx.Response(
+                429, json={"message": "too many"}, headers={"Retry-After": "0"}
+            ),
+            httpx.Response(200, json={"ok": True}),
+        ]
+    )
+    client = FiriAPI(
+        API_KEY, rate_limit=0, base_url=BASE_URL, max_retries=2, backoff_base=0.01
+    )
+    result = await client.get("/v2/markets")
+    assert result == {"ok": True}
+    assert route.call_count == 2
+    await client.aclose()
+
+
+@respx.mock
+async def test_get_raises_rate_limit_error_when_retries_exhausted() -> None:
+    """Persistent 429s must eventually raise FiriRateLimitError."""
+    route = respx.get(f"{BASE_URL}/v2/markets").mock(
+        return_value=httpx.Response(
+            429, json={"message": "too many"}, headers={"Retry-After": "0"}
+        )
+    )
+    client = FiriAPI(
+        API_KEY, rate_limit=0, base_url=BASE_URL, max_retries=1, backoff_base=0.01
+    )
+    with pytest.raises(FiriRateLimitError):
+        await client.get("/v2/markets")
+    assert route.call_count == 2
+    await client.aclose()
+
+
+@respx.mock
+async def test_post_503_is_not_retried() -> None:
+    """POST is not idempotent and must not be retried on 503."""
+    route = respx.post(f"{BASE_URL}/v2/orders").mock(
+        return_value=httpx.Response(503, json={"message": "unavailable"})
+    )
+    client = FiriAPI(
+        API_KEY, rate_limit=0, base_url=BASE_URL, max_retries=2, backoff_base=0.01
+    )
+    with pytest.raises(FiriHTTPError):
+        await client.post_orders("BTCNOK", "limit", "500000", "0.01")
+    assert route.call_count == 1
+    await client.aclose()
+
+
+@respx.mock
+async def test_get_raises_http_error_after_retries_exhausted() -> None:
+    """Persistent 503s must raise FiriHTTPError after max_retries+1 attempts."""
+    route = respx.get(f"{BASE_URL}/v2/markets").mock(
+        return_value=httpx.Response(503, json={"message": "unavailable"})
+    )
+    client = FiriAPI(
+        API_KEY, rate_limit=0, base_url=BASE_URL, max_retries=2, backoff_base=0.01
+    )
+    with pytest.raises(FiriHTTPError):
+        await client.get("/v2/markets")
+    assert route.call_count == 3
+    await client.aclose()
+
+
+@respx.mock
+async def test_auth_error_exposes_error_name() -> None:
+    """A 401 with a machine-readable error name must raise FiriAuthError."""
+    respx.get(f"{BASE_URL}/v2/markets").mock(
+        return_value=httpx.Response(
+            401, json={"name": "ApiKeyNotFound", "message": "Invalid API key"}
+        )
+    )
+    client = FiriAPI(API_KEY, rate_limit=0, base_url=BASE_URL)
+    with pytest.raises(FiriAuthError) as exc_info:
+        await client.get("/v2/markets")
+    assert exc_info.value.error_name == "ApiKeyNotFound"
+    await client.aclose()

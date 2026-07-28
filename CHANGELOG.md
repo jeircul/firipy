@@ -4,7 +4,40 @@ All notable changes to this project will be documented in this file. This format
 
 ## [Unreleased]
 
-- Nothing yet.
+### Added
+
+- HMAC request signing: pass `secret_key` and `client_id` to `FiriAPI` to sign
+  requests for access keys whose security level requires it beyond plain
+  API-key auth. Adds a `firi-user-signature` header, a `firi-user-clientid`
+  header, and `timestamp`/`validity` query parameters. `validity_ms` (default
+  `2000`) controls the signed timestamp's validity window; `hmac_compact_json`
+  (default `True`) controls whether the JSON body is serialized compactly
+  before signing, since Firi's own reference examples disagree on spacing.
+- Automatic retries for `GET`, `HEAD`, and `DELETE` requests on `429`, `500`,
+  `502`, `503`, and `504` responses and on transport errors, with exponential
+  backoff and jitter (honoring `Retry-After` when present). Configurable via
+  `max_retries` (default `2`), `backoff_base` (default `0.5`), and
+  `max_backoff` (default `30.0`). `POST` requests are never auto-retried,
+  since placing an order is not idempotent.
+- `FiriAuthError` and `FiriRateLimitError`, new subclasses of `FiriHTTPError`
+  for 401/403 and 429 responses respectively. `FiriRateLimitError` carries a
+  `retry_after` attribute.
+- `error_name` attribute on `FiriHTTPError`: Firi's machine-readable error code
+  from the response body's `"name"` field (e.g. `ApiKeyNotFound`,
+  `SecurityLevelTooLow`), when available.
+
+### Changed
+
+- `post_orders` signature clarified to `(market, ordertype, price, amount)`;
+  `ordertype` is mapped to the API's `type` field internally.
+- The auth header is now sent as `firi-access-key` (Firi's current documented
+  header name), with `miraiex-access-key` sent alongside for backward
+  compatibility.
+- `rate_limit` is now a true minimum-interval pacing gate rather than an
+  unconditional pre-request sleep: concurrent calls are serialized through a
+  lock to respect the interval instead of all sleeping in parallel.
+- Clarified that `MAX_COUNT` (10,000) is a firipy client-side guardrail, not a
+  limit enforced by the Firi API itself.
 
 ## [1.1.0] - 2026-04-22
 

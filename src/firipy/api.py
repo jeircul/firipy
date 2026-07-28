@@ -1,18 +1,34 @@
 """Async Firi API client built on ``httpx.AsyncClient``."""
 
+import asyncio
 import logging
+import random
 import warnings
-from asyncio import sleep
 from collections.abc import Iterable
+from time import monotonic
 from typing import Any
 
 import httpx
 
-__all__ = ["FiriAPI", "FiriAPIError", "FiriHTTPError"]
+from ._hmac import CLIENT_ID_HEADER, sign_request
+
+__all__ = [
+    "FiriAPI",
+    "FiriAPIError",
+    "FiriAuthError",
+    "FiriHTTPError",
+    "FiriRateLimitError",
+]
 
 log = logging.getLogger(__name__)
 
 type JSON = dict[str, Any] | list[Any]
+
+ACCESS_KEY_HEADER = "firi-access-key"
+LEGACY_ACCESS_KEY_HEADER = "miraiex-access-key"
+
+RETRYABLE_STATUS = frozenset({429, 500, 502, 503, 504})
+IDEMPOTENT_METHODS = frozenset({"GET", "HEAD", "DELETE"})
 
 
 class FiriAPIError(Exception):
@@ -25,6 +41,7 @@ class FiriHTTPError(FiriAPIError):
     Attributes:
         status_code: HTTP status code from the failed response.
         payload: Parsed JSON body from the error response, if available.
+        error_name: The API's machine-readable error name, if available.
     """
 
     def __init__(
@@ -32,10 +49,38 @@ class FiriHTTPError(FiriAPIError):
         status_code: int,
         message: str,
         payload: Any | None = None,
+        error_name: str | None = None,
     ):
-        super().__init__(f"{status_code}: {message}")
+        if error_name:
+            super().__init__(f"{status_code} {error_name}: {message}")
+        else:
+            super().__init__(f"{status_code}: {message}")
         self.status_code = status_code
         self.payload = payload
+        self.error_name = error_name
+
+
+class FiriAuthError(FiriHTTPError):
+    """Raised for authentication/authorization failures (401/403)."""
+
+
+class FiriRateLimitError(FiriHTTPError):
+    """Raised when the API responds with 429 Too Many Requests.
+
+    Attributes:
+        retry_after: Seconds to wait before retrying, if the API supplied one.
+    """
+
+    def __init__(
+        self,
+        status_code: int,
+        message: str,
+        payload: Any | None = None,
+        error_name: str | None = None,
+        retry_after: float | None = None,
+    ):
+        super().__init__(status_code, message, payload, error_name)
+        self.retry_after = retry_after
 
 
 class FiriAPI:
@@ -67,29 +112,57 @@ class FiriAPI:
         timeout: float = 10.0,
         raise_on_error: bool = True,
         client: httpx.AsyncClient | None = None,
+        secret_key: str | None = None,
+        client_id: str | None = None,
+        validity_ms: int = 2000,
+        hmac_compact_json: bool = True,
+        max_retries: int = 2,
+        backoff_base: float = 0.5,
+        max_backoff: float = 30.0,
     ):
+        if (secret_key is None) != (client_id is None):
+            raise ValueError(
+                "secret_key and client_id must be given together or not at all."
+            )
         self.apiurl = base_url.rstrip("/")
         # Track ownership so we only close clients we created ourselves.
         self._owns_client = client is None
         if client is None:
             self.client = httpx.AsyncClient(
-                headers={"miraiex-access-key": api_key},
+                headers={
+                    ACCESS_KEY_HEADER: api_key,
+                    LEGACY_ACCESS_KEY_HEADER: api_key,
+                },
                 timeout=timeout,
+                limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
             )
         else:
             # Caller owns this client and is responsible for auth headers.
             # Fail fast if the required auth header is absent rather than
             # letting requests silently return 401s at call time.
-            if "miraiex-access-key" not in client.headers:
+            if (
+                ACCESS_KEY_HEADER not in client.headers
+                and LEGACY_ACCESS_KEY_HEADER not in client.headers
+            ):
                 raise ValueError(
-                    "Injected client is missing the 'miraiex-access-key' header. "
-                    "Set it before passing the client to FiriAPI, or omit 'client' "
-                    "and pass 'api_key' to let FiriAPI create its own client."
+                    f"Injected client is missing the '{ACCESS_KEY_HEADER}' (or "
+                    f"legacy '{LEGACY_ACCESS_KEY_HEADER}') header. Set one before "
+                    "passing the client to FiriAPI, or omit 'client' and pass "
+                    "'api_key' to let FiriAPI create its own client."
                 )
             self.client = client
         self.rate_limit = rate_limit
         self.timeout = timeout
         self.raise_on_error = raise_on_error
+        self.secret_key = secret_key
+        self.client_id = client_id
+        self.validity_ms = validity_ms
+        self.hmac_compact_json = hmac_compact_json
+        self.max_retries = max_retries
+        self.backoff_base = backoff_base
+        self.max_backoff = max_backoff
+        self._pace_lock = asyncio.Lock()
+        self._next_allowed_at: float = 0.0
 
     # --- Context manager helpers -------------------------------------------
 
@@ -128,6 +201,16 @@ class FiriAPI:
 
     # --- Core HTTP ---------------------------------------------------------
 
+    async def _acquire_slot(self) -> None:
+        """Block until the client-side pacing interval has elapsed."""
+        if self.rate_limit <= 0:
+            return
+        async with self._pace_lock:
+            wait = self._next_allowed_at - monotonic()
+            if wait > 0:
+                await asyncio.sleep(wait)
+            self._next_allowed_at = monotonic() + self.rate_limit
+
     async def _request(self, method: str, endpoint: str, **kwargs: Any) -> JSON:
         """Send an HTTP request and return parsed JSON.
 
@@ -136,47 +219,117 @@ class FiriAPI:
             error occurs, a dict with keys ``error`` and ``status`` is
             returned instead.
         """
-        if self.rate_limit > 0:
-            await sleep(self.rate_limit)
         url = self.apiurl + endpoint
-        try:
-            response = await self.client.request(method, url, **kwargs)
-            response.raise_for_status()
-        except httpx.HTTPStatusError as http_err:
-            status_code = http_err.response.status_code
-            payload: Any | None = None
-            try:
-                payload = http_err.response.json()
-            except Exception:  # pragma: no cover
-                payload = None
-            message = None
-            if isinstance(payload, dict):
-                message = payload.get("message") or payload.get("error")
-            if not message:
-                message = str(http_err)
-            if self.raise_on_error:
-                raise FiriHTTPError(status_code, message, payload) from http_err
-            log.warning(
-                "HTTP error (%s) for %s %s: %s",
-                status_code,
-                method,
-                url,
-                message,
+
+        if self.secret_key is not None and self.client_id is not None:
+            sig_headers, sig_params = sign_request(
+                self.secret_key,
+                body=kwargs.get("json"),
+                compact=self.hmac_compact_json,
+                validity_ms=self.validity_ms,
             )
-            return {"error": message, "status": status_code}
-        except httpx.HTTPError as err:
-            if self.raise_on_error:
-                raise FiriAPIError(str(err)) from err
-            log.error("Request error for %s %s: %s", method, url, err)
-            return {"error": str(err), "status": None}
-        else:
+            headers = dict(kwargs.get("headers") or {})
+            headers.update(sig_headers)
+            headers[CLIENT_ID_HEADER] = self.client_id
+            kwargs["headers"] = headers
+
+            params = dict(kwargs.get("params") or {})
+            for key, value in sig_params.items():
+                params.setdefault(key, value)
+            kwargs["params"] = params
+
+        method_upper = method.upper()
+        retryable = method_upper in IDEMPOTENT_METHODS
+        attempt = 0
+        while True:
+            await self._acquire_slot()
             try:
-                return response.json()
-            except ValueError:  # pragma: no cover
-                return {
-                    "error": "Invalid JSON in response",
-                    "status": response.status_code,
-                }
+                response = await self.client.request(method, url, **kwargs)
+                response.raise_for_status()
+            except httpx.HTTPStatusError as http_err:
+                status_code = http_err.response.status_code
+                if (
+                    retryable
+                    and status_code in RETRYABLE_STATUS
+                    and attempt < self.max_retries
+                ):
+                    await self._sleep_before_retry(http_err.response, attempt)
+                    attempt += 1
+                    continue
+                payload: Any | None = None
+                try:
+                    payload = http_err.response.json()
+                except ValueError:
+                    payload = None
+                message = None
+                error_name = None
+                if isinstance(payload, dict):
+                    message = payload.get("message") or payload.get("error")
+                    error_name = payload.get("name")
+                if not message:
+                    message = str(http_err)
+                if self.raise_on_error:
+                    exc_cls: type[FiriHTTPError] = FiriHTTPError
+                    if status_code in (401, 403):
+                        exc_cls = FiriAuthError
+                    elif status_code == 429:
+                        retry_after = http_err.response.headers.get("Retry-After")
+                        raise FiriRateLimitError(
+                            status_code,
+                            message,
+                            payload,
+                            error_name,
+                            float(retry_after) if retry_after else None,
+                        ) from http_err
+                    raise exc_cls(
+                        status_code, message, payload, error_name
+                    ) from http_err
+                log.warning(
+                    "HTTP error (%s) for %s %s: %s",
+                    status_code,
+                    method,
+                    url,
+                    message,
+                )
+                return {"error": message, "status": status_code}
+            except httpx.TransportError as err:
+                if retryable and attempt < self.max_retries:
+                    await self._sleep_before_retry(None, attempt)
+                    attempt += 1
+                    continue
+                if self.raise_on_error:
+                    raise FiriAPIError(str(err)) from err
+                log.error("Request error for %s %s: %s", method, url, err)
+                return {"error": str(err), "status": None}
+            except httpx.HTTPError as err:
+                if self.raise_on_error:
+                    raise FiriAPIError(str(err)) from err
+                log.error("Request error for %s %s: %s", method, url, err)
+                return {"error": str(err), "status": None}
+            else:
+                try:
+                    return response.json()
+                except ValueError:  # pragma: no cover
+                    return {
+                        "error": "Invalid JSON in response",
+                        "status": response.status_code,
+                    }
+
+    async def _sleep_before_retry(
+        self, response: httpx.Response | None, attempt: int
+    ) -> None:
+        """Sleep before a retry, honoring ``Retry-After`` if present."""
+        retry_after = response.headers.get("Retry-After") if response else None
+        if retry_after:
+            try:
+                await asyncio.sleep(float(retry_after))
+                return
+            except ValueError:
+                pass
+        delay = random.uniform(
+            0, min(self.backoff_base * 2**attempt, self.max_backoff)
+        )
+        await asyncio.sleep(delay)
 
     async def get(self, endpoint: str, **kwargs: Any) -> JSON:
         """Send a GET request to the given endpoint."""

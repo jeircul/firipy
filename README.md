@@ -37,16 +37,72 @@ async def main():
 asyncio.run(main())
 ```
 
+## 🔑 Authentication
+
+The API key is sent as the `firi-access-key` header (Firi's current documented
+header name). `miraiex-access-key` is sent alongside it for backward
+compatibility with older integrations.
+
 ## ⏳ Rate Limiting
 
-Built-in client-side pacing (seconds to sleep before each request). Default is 1 second:
+Built-in client-side pacing (seconds to wait between requests). Default is 1 second:
 
 ```python
-client = FiriAPI("your-api-key", rate_limit=2)    # 2 second delay
-client = FiriAPI("your-api-key", rate_limit=0)    # no delay
+client = FiriAPI("your-api-key", rate_limit=2)    # min. 2 seconds between requests
+client = FiriAPI("your-api-key", rate_limit=0)    # no pacing
 ```
 
+`rate_limit` is a minimum-interval gate, not a fixed pre-request sleep. Concurrent
+calls share a lock and queue up to respect the interval, so they don't all sleep
+in parallel and burst through together the moment their individual delays expire.
 Uses `asyncio.sleep` so it won't block the event loop.
+
+## 🔁 Retries
+
+GET, HEAD, and DELETE requests retry automatically on 429, 500, 502, 503, and 504
+responses, and on transport-level errors (connection failures, timeouts):
+
+```python
+client = FiriAPI("your-api-key", max_retries=2, backoff_base=0.5, max_backoff=30.0)
+```
+
+- `max_retries` (default `2`): number of retry attempts before the error is raised.
+- `backoff_base` (default `0.5`): base seconds for exponential backoff, with jitter added.
+- `max_backoff` (default `30.0`): cap on the backoff delay.
+
+If the response carries a `Retry-After` header, that value is used instead of the
+computed backoff.
+
+POST requests never retry automatically. Placing an order isn't idempotent, so a
+retried POST after a timeout could submit the same order twice; that decision is
+left to the caller.
+
+## 🔐 HMAC Request Signing
+
+Some Firi access keys require a security level beyond plain API-key auth. For
+those, pass `secret_key` and `client_id` alongside `api_key`:
+
+```python
+client = FiriAPI(
+    "your-api-key",
+    secret_key="your-secret-key",
+    client_id="your-client-id",
+)
+```
+
+When both are set, every request is signed: a `firi-user-signature` header and a
+`firi-user-clientid` header are added, along with `timestamp` and `validity`
+query parameters. `secret_key` and `client_id` must be given together, or not at
+all.
+
+Two extra options tune the signing:
+
+- `validity_ms` (default `2000`): how long, in milliseconds, the signed timestamp
+  stays valid.
+- `hmac_compact_json` (default `True`): whether the JSON body is serialized
+  without extra whitespace before signing. Firi's own reference examples don't
+  agree on spacing, so this is exposed in case a given endpoint expects the
+  non-compact form.
 
 ## 🚩 Error Handling
 
@@ -56,6 +112,12 @@ Structured exceptions are raised by default:
 |---|---|
 | `FiriAPIError` | Base class for client errors |
 | `FiriHTTPError` | Non-success HTTP responses (status >= 400) |
+| `FiriAuthError` | Subclass of `FiriHTTPError` for authentication/authorization failures (401/403) |
+| `FiriRateLimitError` | Subclass of `FiriHTTPError` for 429 responses; carries a `retry_after` attribute (seconds, if the API supplied one) |
+
+`FiriHTTPError` also carries an `error_name` attribute: Firi's machine-readable
+error code from the response body's `"name"` field (e.g. `ApiKeyNotFound`,
+`SecurityLevelTooLow`), when the API provides one.
 
 Suppress exceptions with `raise_on_error=False`:
 
@@ -92,14 +154,14 @@ Error dict shape: `{"error": str, "status": int | None}`.
 | `orders_market_history(m, count=)` | `/v2/orders/{m}/history` | Closed orders (market) | `count` |
 | `orders_history(count=)` | `/v2/orders/history` | Closed orders | `count` |
 | `order(order_id)` | `/v2/order/{id}` | Get order | -- |
-| `post_orders(market, type, price, amount)` | `/v2/orders` | Create order | -- |
+| `post_orders(market, ordertype, price, amount)` | `/v2/orders` | Create order | -- |
 | `delete_orders()` | `/v2/orders` | Cancel all orders | -- |
 | `delete_orders_for_market(market)` | `/v2/orders/{market}` | Cancel market orders | -- |
 | `delete_order_detailed(order_id, market=)` | `/v2/orders/{id}/detailed` | Cancel + matched amt | `market` |
 | `coin_address(symbol)` | `/v2/{symbol}/address` | Coin deposit address | -- |
 | `coin_withdraw_pending(symbol)` | `/v2/{symbol}/withdraw/pending` | Pending withdrawals | -- |
 
-Default `count` is 500 (`DEFAULT_COUNT`). A warning is emitted above `MAX_COUNT` (10,000).
+Default `count` is 500 (`DEFAULT_COUNT`). A warning is emitted above `MAX_COUNT` (10,000); this is a firipy client-side guardrail, not a limit enforced by the Firi API itself.
 
 ### Generic Coin Helpers
 
