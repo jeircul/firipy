@@ -23,6 +23,7 @@ All methods are async and must be awaited:
 import asyncio
 from firipy import FiriAPI
 
+
 async def main():
     async with FiriAPI("your-api-key") as client:
         time = await client.time()
@@ -33,6 +34,7 @@ async def main():
 
         balances = await client.balances()
         print(balances)
+
 
 asyncio.run(main())
 ```
@@ -48,8 +50,8 @@ compatibility with older integrations.
 Built-in client-side pacing (seconds to wait between requests). Default is 1 second:
 
 ```python
-client = FiriAPI("your-api-key", rate_limit=2)    # min. 2 seconds between requests
-client = FiriAPI("your-api-key", rate_limit=0)    # no pacing
+client = FiriAPI("your-api-key", rate_limit=2)  # min. 2 seconds between requests
+client = FiriAPI("your-api-key", rate_limit=0)  # no pacing
 ```
 
 `rate_limit` is a minimum-interval gate, not a fixed pre-request sleep. Concurrent

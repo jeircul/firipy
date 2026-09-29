@@ -111,9 +111,11 @@ with FiriAPI("your-api-key") as client:
 import asyncio
 from firipy import FiriAPI
 
+
 async def main():
     async with FiriAPI("your-api-key") as client:
         markets = await client.markets()
+
 
 asyncio.run(main())
 ```

@@ -42,9 +42,9 @@ uv sync && uv run ruff format --check . && uv run ruff check . && uv run ty chec
 This client carries live credentials in `client.headers`. **Never print, log, repr, or dict-dump `client.headers`, `os.environ`, or a `FiriAPI` instance's auth attrs.** Check membership or mask instead:
 
 ```python
-assert ACCESS_KEY_HEADER in client.headers        # yes
-print(dict(client.headers))                        # NO — leaks the key
-print(key[:4] + "…")                               # masked, if you must
+assert ACCESS_KEY_HEADER in client.headers  # yes
+print(dict(client.headers))  # NO — leaks the key
+print(key[:4] + "…")  # masked, if you must
 ```
 
 Secret-bearing names: `api_key` → `firi-access-key` + legacy `miraiex-access-key`; `secret_key`/`client_id` → `firi-user-signature` + `firi-user-clientid`. Same rule applies to test fixtures, error messages, and debug one-liners.
