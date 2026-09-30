@@ -1,87 +1,7 @@
 {
   $schema: 'https://docs.renovatebot.com/renovate-schema.json',
   extends: [
-    'config:recommended',
-    ':dependencyDashboard',
-    ':semanticCommits',
-  ],
-  dependencyDashboard: true,
-  prHourlyLimit: 2,
-  schedule: [
-    'after 6pm every weekday',
-    'before 6am every weekday',
-  ],
-  separateMajorMinor: true,
-  separateMinorPatch: true,
-  lockFileMaintenance: {
-    enabled: true,
-    schedule: [
-      'before 6am on monday',
-    ],
-  },
-  packageRules: [
-    {
-      description: 'Automerge safe, non-breaking updates',
-      matchUpdateTypes: [
-        'minor',
-        'patch',
-        'pin',
-        'digest',
-      ],
-      automerge: true,
-    },
-    {
-      description: 'Append version info to commit messages',
-      matchUpdateTypes: [
-        'major',
-        'minor',
-        'patch',
-      ],
-      commitMessageExtra: '( {{currentVersion}} → {{newVersion}} )',
-    },
-    {
-      description: 'Append digest info to commit messages',
-      matchUpdateTypes: [
-        'digest',
-      ],
-      commitMessageExtra: '( {{currentDigestShort}} → {{newDigestShort}} )',
-    },
-    {
-      description: 'Surface major upgrades individually',
-      matchUpdateTypes: [
-        'major',
-      ],
-      groupName: 'major {{depName}}',
-      semanticCommitType: 'chore',
-      semanticCommitScope: 'deps',
-    },
-    {
-      description: 'Group core Python tooling maintained in pyproject',
-      matchManagers: [
-        'pep621',
-      ],
-      groupName: 'python tooling',
-      semanticCommitType: 'chore',
-      semanticCommitScope: 'deps-py',
-      matchPackageNames: [
-        '/^ruff$/',
-        '/^ty$/',
-        '/^pytest$/',
-        '/^pytest-cov$/',
-        '/^pytest-asyncio$/',
-        '/^respx$/',
-      ],
-    },
-    {
-      description: 'Group GitHub Actions updates while keeping majors separated',
-      matchManagers: [
-        'github-actions',
-      ],
-      groupName: 'github actions',
-      separateMajorMinor: true,
-      semanticCommitType: 'chore',
-      semanticCommitScope: 'deps-gha',
-    },
+    'github>jeircul/renovate-config',
   ],
   customManagers: [
     {
@@ -92,6 +12,7 @@
       ],
       matchStrings: [
         "python install (?<currentValue>\\d+\\.\\d+)",
+        "Python (?<currentValue>\\d+\\.\\d+)\\)",
       ],
       depNameTemplate: 'python',
       datasourceTemplate: 'python-version',
