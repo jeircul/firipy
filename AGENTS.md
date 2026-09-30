@@ -68,4 +68,4 @@ Secret-bearing names: `api_key` → `firi-access-key` + legacy `miraiex-access-k
 
 1. `task version PART=patch|minor|major` (or `NEW=x.y.z`; `DRY_RUN=1` to preview) — bumps `pyproject.toml` and rolls `CHANGELOG.md` `[Unreleased]` into a dated entry.
 2. `task release-check` → commit → tag `v{version}` → push.
-3. **Publish a GitHub Release** — `publish.yml` triggers on `release: published`, not on tag push. It uploads to PyPI via `secrets.PYPI_API_TOKEN`.
+3. **Publish a GitHub Release** — `publish.yml` triggers on `release: published`, not on tag push. It uploads to PyPI via Trusted Publishing (OIDC, `pypi` environment); no token secret.
