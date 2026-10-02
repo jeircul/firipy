@@ -1,13 +1,18 @@
 """Unit tests for :mod:`firipy` using ``respx`` to mock HTTP calls."""
 
 import asyncio
+import itertools
 import time
+from datetime import UTC, datetime, timedelta
+from email.utils import format_datetime
+from typing import Any
 
 import httpx
 import pytest
 import respx
 
 from firipy import FiriAPI, FiriAPIError, FiriHTTPError
+from firipy._hmac import SIGNATURE_HEADER, sign_request
 from firipy.api import (
     ACCESS_KEY_HEADER,
     LEGACY_ACCESS_KEY_HEADER,
@@ -391,3 +396,96 @@ async def test_auth_error_exposes_error_name() -> None:
         await client.get("/v2/markets")
     assert exc_info.value.error_name == "ApiKeyNotFound"
     await client.aclose()
+
+
+@respx.mock
+async def test_signed_retry_signs_each_attempt(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Each retry must carry a fresh timestamp and signature."""
+    timestamps = itertools.count(1_700_000_000)
+
+    def fake_sign(secret_key: str, **kwargs: Any) -> tuple[dict, dict]:
+        return sign_request(secret_key, timestamp=next(timestamps), **kwargs)
+
+    monkeypatch.setattr("firipy.api.sign_request", fake_sign)
+    route = respx.get(f"{BASE_URL}/v2/balances").mock(
+        side_effect=[
+            httpx.Response(503, json={"message": "unavailable"}),
+            httpx.Response(200, json={"ok": True}),
+        ]
+    )
+    client = FiriAPI(
+        API_KEY,
+        rate_limit=0,
+        base_url=BASE_URL,
+        backoff_base=0.01,
+        secret_key="secret",
+        client_id="client",
+    )
+    params = {"count": "5"}
+    await client.get("/v2/balances", params=params)
+    first, second = (call.request for call in route.calls)
+    assert first.url.params["timestamp"] != second.url.params["timestamp"]
+    assert first.headers[SIGNATURE_HEADER] != second.headers[SIGNATURE_HEADER]
+    assert second.url.params["count"] == "5"
+    assert params == {"count": "5"}
+    await client.aclose()
+
+
+@pytest.mark.parametrize("retry_after", ["Wed, 21 Oct 2015 07:28:00 GMT", "not-a-date"])
+@respx.mock
+async def test_retry_after_http_date_or_garbage_is_retried(retry_after: str) -> None:
+    """A non-numeric Retry-After must not raise ValueError."""
+    route = respx.get(f"{BASE_URL}/v2/markets").mock(
+        side_effect=[
+            httpx.Response(
+                429, json={"message": "too many"}, headers={"Retry-After": retry_after}
+            ),
+            httpx.Response(200, json={"ok": True}),
+        ]
+    )
+    client = FiriAPI(API_KEY, rate_limit=0, base_url=BASE_URL, backoff_base=0.01)
+    assert await client.get("/v2/markets") == {"ok": True}
+    assert route.call_count == 2
+    await client.aclose()
+
+
+@respx.mock
+async def test_rate_limit_error_parses_http_date_retry_after() -> None:
+    """An HTTP-date Retry-After must surface as FiriRateLimitError."""
+    when = datetime.now(UTC) + timedelta(seconds=120)
+    respx.get(f"{BASE_URL}/v2/markets").mock(
+        return_value=httpx.Response(
+            429,
+            json={"message": "too many"},
+            headers={"Retry-After": format_datetime(when, usegmt=True)},
+        )
+    )
+    client = FiriAPI(API_KEY, rate_limit=0, base_url=BASE_URL, max_retries=0)
+    with pytest.raises(FiriRateLimitError) as exc_info:
+        await client.get("/v2/markets")
+    assert exc_info.value.retry_after is not None
+    assert 100 < exc_info.value.retry_after <= 120
+    await client.aclose()
+
+
+@respx.mock
+async def test_path_values_are_percent_encoded(client: FiriAPI) -> None:
+    """Caller values with ``/`` or ``..`` must stay inside one path segment."""
+    route = respx.get(url__startswith=BASE_URL).mock(
+        return_value=httpx.Response(200, json={})
+    )
+    await client.order("../balances")
+    await client.markets_market("BTC/NOK")
+    paths = [call.request.url.raw_path for call in route.calls]
+    assert paths == [b"/v2/order/..%2Fbalances", b"/v2/markets/BTC%2FNOK"]
+
+
+@pytest.mark.parametrize("value", ["", ".", ".."])
+async def test_dot_and_empty_path_values_are_rejected(
+    client: FiriAPI, value: str
+) -> None:
+    """``.``, ``..`` and empty values would resolve to a different endpoint."""
+    with pytest.raises(ValueError):
+        await client.order(value)

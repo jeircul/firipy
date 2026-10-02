@@ -2,11 +2,15 @@
 
 import asyncio
 import logging
+import math
 import random
 import warnings
 from collections.abc import Iterable
+from datetime import UTC, datetime
+from email.utils import parsedate_to_datetime
 from time import monotonic
 from typing import Any
+from urllib.parse import quote
 
 import httpx
 
@@ -29,6 +33,32 @@ LEGACY_ACCESS_KEY_HEADER = "miraiex-access-key"
 
 RETRYABLE_STATUS = frozenset({429, 500, 502, 503, 504})
 IDEMPOTENT_METHODS = frozenset({"GET", "HEAD", "DELETE"})
+
+
+def _path_segment(value: object) -> str:
+    segment = quote(str(value), safe="")
+    if segment in {"", ".", ".."}:
+        raise ValueError(f"path segment must not be empty, '.' or '..' (got {value!r})")
+    return segment
+
+
+def _parse_retry_after(value: str | None) -> float | None:
+    """Return a ``Retry-After`` delay in seconds, or ``None`` if unusable."""
+    if not value:
+        return None
+    try:
+        seconds = float(value)
+    except ValueError:
+        try:
+            when = parsedate_to_datetime(value)
+        except (TypeError, ValueError):
+            return None
+        if when.tzinfo is None:
+            when = when.replace(tzinfo=UTC)
+        seconds = (when - datetime.now(UTC)).total_seconds()
+    if not math.isfinite(seconds):
+        return None
+    return max(seconds, 0.0)
 
 
 class FiriAPIError(Exception):
@@ -221,30 +251,28 @@ class FiriAPI:
         """
         url = self.apiurl + endpoint
 
-        if self.secret_key is not None and self.client_id is not None:
-            sig_headers, sig_params = sign_request(
-                self.secret_key,
-                body=kwargs.get("json"),
-                compact=self.hmac_compact_json,
-                validity_ms=self.validity_ms,
-            )
-            headers = dict(kwargs.get("headers") or {})
-            headers.update(sig_headers)
-            headers[CLIENT_ID_HEADER] = self.client_id
-            kwargs["headers"] = headers
-
-            params = dict(kwargs.get("params") or {})
-            for key, value in sig_params.items():
-                params.setdefault(key, value)
-            kwargs["params"] = params
-
         method_upper = method.upper()
         retryable = method_upper in IDEMPOTENT_METHODS
         attempt = 0
         while True:
             await self._acquire_slot()
+            request_kwargs: dict[str, Any] = kwargs
+            # Sign after pacing and backoff so the short validity window starts now.
+            if self.secret_key is not None and self.client_id is not None:
+                sig_headers, sig_params = sign_request(
+                    self.secret_key,
+                    body=kwargs.get("json"),
+                    compact=self.hmac_compact_json,
+                    validity_ms=self.validity_ms,
+                )
+                headers = dict(kwargs.get("headers") or {})
+                headers.update(sig_headers)
+                headers[CLIENT_ID_HEADER] = self.client_id
+                params = dict(kwargs.get("params") or {})
+                params.update(sig_params)
+                request_kwargs = {**kwargs, "headers": headers, "params": params}
             try:
-                response = await self.client.request(method, url, **kwargs)
+                response = await self.client.request(method, url, **request_kwargs)
                 response.raise_for_status()
             except httpx.HTTPStatusError as http_err:
                 status_code = http_err.response.status_code
@@ -273,13 +301,14 @@ class FiriAPI:
                     if status_code in (401, 403):
                         exc_cls = FiriAuthError
                     elif status_code == 429:
-                        retry_after = http_err.response.headers.get("Retry-After")
                         raise FiriRateLimitError(
                             status_code,
                             message,
                             payload,
                             error_name,
-                            float(retry_after) if retry_after else None,
+                            _parse_retry_after(
+                                http_err.response.headers.get("Retry-After")
+                            ),
                         ) from http_err
                     raise exc_cls(
                         status_code, message, payload, error_name
@@ -319,13 +348,12 @@ class FiriAPI:
         self, response: httpx.Response | None, attempt: int
     ) -> None:
         """Sleep before a retry, honoring ``Retry-After`` if present."""
-        retry_after = response.headers.get("Retry-After") if response else None
-        if retry_after:
-            try:
-                await asyncio.sleep(float(retry_after))
-                return
-            except ValueError:
-                pass
+        retry_after = _parse_retry_after(
+            response.headers.get("Retry-After") if response else None
+        )
+        if retry_after is not None:
+            await asyncio.sleep(min(retry_after, self.max_backoff))
+            return
         delay = random.uniform(0, min(self.backoff_base * 2**attempt, self.max_backoff))
         await asyncio.sleep(delay)
 
@@ -421,7 +449,9 @@ class FiriAPI:
         )
         if validated_direction is not None:
             params["direction"] = validated_direction
-        return await self.get(f"/v2/history/transactions/{year}", params=params or None)
+        return await self.get(
+            f"/v2/history/transactions/{_path_segment(year)}", params=params or None
+        )
 
     async def history_transactions_month_year(
         self, month: str, year: str, *, direction: str | None = None
@@ -440,7 +470,8 @@ class FiriAPI:
         if validated_direction is not None:
             params["direction"] = validated_direction
         return await self.get(
-            f"/v2/history/transactions/{month}/{year}", params=params or None
+            f"/v2/history/transactions/{_path_segment(month)}/{_path_segment(year)}",
+            params=params or None,
         )
 
     async def history_orders(
@@ -485,7 +516,9 @@ class FiriAPI:
         params["count"] = count
         if type is not None:
             params["type"] = type
-        return await self.get(f"/v2/history/orders/{market}", params=params)
+        return await self.get(
+            f"/v2/history/orders/{_path_segment(market)}", params=params
+        )
 
     # --- Markets -----------------------------------------------------------
 
@@ -502,7 +535,9 @@ class FiriAPI:
         if count is not None:
             count = self._validate_int("count", count, maximum=self.MAX_COUNT)
             params["count"] = count
-        return await self.get(f"/v2/markets/{market}/history", params=params or None)
+        return await self.get(
+            f"/v2/markets/{_path_segment(market)}/history", params=params or None
+        )
 
     async def markets_market_depth(
         self,
@@ -523,7 +558,9 @@ class FiriAPI:
             params["bids"] = self._validate_int("bids", bids)
         if asks is not None:
             params["asks"] = self._validate_int("asks", asks)
-        return await self.get(f"/v2/markets/{market}/depth", params=params or None)
+        return await self.get(
+            f"/v2/markets/{_path_segment(market)}/depth", params=params or None
+        )
 
     async def markets_market(self, market: str) -> JSON:
         """Get info about a specific market.
@@ -531,7 +568,7 @@ class FiriAPI:
         Args:
             market: Market identifier (e.g. ``"BTCNOK"``).
         """
-        return await self.get(f"/v2/markets/{market}")
+        return await self.get(f"/v2/markets/{_path_segment(market)}")
 
     async def markets(self) -> JSON:
         """Get all available markets."""
@@ -543,7 +580,7 @@ class FiriAPI:
         Args:
             market: Market identifier (e.g. ``"BTCNOK"``).
         """
-        return await self.get(f"/v2/markets/{market}/ticker")
+        return await self.get(f"/v2/markets/{_path_segment(market)}/ticker")
 
     async def markets_tickers(self) -> JSON:
         """Get tickers for all available markets."""
@@ -721,7 +758,9 @@ class FiriAPI:
         params: dict[str, Any] = {}
         if count is not None:
             params["count"] = self._validate_int("count", count, maximum=self.MAX_COUNT)
-        return await self.get(f"/v2/orders/{market}", params=params or None)
+        return await self.get(
+            f"/v2/orders/{_path_segment(market)}", params=params or None
+        )
 
     async def orders_market_history(
         self, market: str, *, count: int | None = None
@@ -735,7 +774,9 @@ class FiriAPI:
         params: dict[str, Any] = {}
         if count is not None:
             params["count"] = self._validate_int("count", count, maximum=self.MAX_COUNT)
-        return await self.get(f"/v2/orders/{market}/history", params=params or None)
+        return await self.get(
+            f"/v2/orders/{_path_segment(market)}/history", params=params or None
+        )
 
     async def orders_history(self, *, count: int | None = None) -> JSON:
         """Get all filled and closed orders.
@@ -754,7 +795,7 @@ class FiriAPI:
         Args:
             order_id: The order identifier.
         """
-        return await self.get(f"/v2/order/{order_id}")
+        return await self.get(f"/v2/order/{_path_segment(order_id)}")
 
     async def order(self, order_id: str) -> JSON:
         """Get an order by its ID (concise alias for :meth:`order_orderid`).
@@ -774,7 +815,7 @@ class FiriAPI:
         Args:
             market_or_market_id: Market identifier or ID.
         """
-        return await self.delete(f"/v2/orders/{market_or_market_id}")
+        return await self.delete(f"/v2/orders/{_path_segment(market_or_market_id)}")
 
     async def delete_order_detailed(
         self, order_id: str, *, market: str | None = None
@@ -786,8 +827,10 @@ class FiriAPI:
             market: If provided, uses the market-specific detailed endpoint.
         """
         if market:
-            return await self.delete(f"/v2/orders/{order_id}/{market}/detailed")
-        return await self.delete(f"/v2/orders/{order_id}/detailed")
+            return await self.delete(
+                f"/v2/orders/{_path_segment(order_id)}/{_path_segment(market)}/detailed"
+            )
+        return await self.delete(f"/v2/orders/{_path_segment(order_id)}/detailed")
 
     # --- Balances ----------------------------------------------------------
 
@@ -824,7 +867,7 @@ class FiriAPI:
         Args:
             symbol: Upper-case asset symbol (e.g. ``"BTC"``, ``"ETH"``).
         """
-        return await self.get(f"/v2/{symbol}/address")
+        return await self.get(f"/v2/{_path_segment(symbol)}/address")
 
     async def coin_withdraw_pending(self, symbol: str) -> JSON:
         """Get pending withdrawals for a coin.
@@ -832,4 +875,4 @@ class FiriAPI:
         Args:
             symbol: Upper-case asset symbol (e.g. ``"BTC"``, ``"ETH"``).
         """
-        return await self.get(f"/v2/{symbol}/withdraw/pending")
+        return await self.get(f"/v2/{_path_segment(symbol)}/withdraw/pending")

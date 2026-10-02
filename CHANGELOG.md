@@ -4,7 +4,17 @@ All notable changes to this project will be documented in this file. This format
 
 ## [Unreleased]
 
-- Nothing yet.
+### Fixed
+
+- HMAC-signed requests now get a new timestamp and signature on each attempt.
+  Before, a retry or a call that waited for the rate limiter used the first
+  signature, which can expire after `validity_ms`.
+- A `Retry-After` header with an HTTP date no longer raises `ValueError`. The
+  client accepts seconds or an HTTP date, and uses the normal backoff when it
+  cannot read the value. The retry wait is now capped at `max_backoff`.
+- Caller values in URL paths (market, order ID, symbol, year, month) are now
+  percent-encoded. A value that contains `/` or `..` can no longer reach a
+  different endpoint. A value that is empty, `.` or `..` raises `ValueError`.
 
 ## [1.2.0] - 2026-07-28
 
