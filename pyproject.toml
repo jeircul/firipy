@@ -71,7 +71,3 @@ select = [
 
 [tool.ruff.lint.isort]
 known-first-party = ["firipy"]
-
-[tool.pyright]
-pythonVersion = "3.13"
-typeCheckingMode = "standard"
