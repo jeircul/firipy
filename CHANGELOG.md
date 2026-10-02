@@ -14,7 +14,7 @@ All notable changes to this project will be documented in this file. This format
   cannot read the value. The retry wait is now capped at `max_backoff`.
 - Caller values in URL paths (market, order ID, symbol, year, month) are now
   percent-encoded. A value that contains `/` or `..` can no longer reach a
-  different endpoint.
+  different endpoint. A value that is empty, `.` or `..` raises `ValueError`.
 
 ## [1.2.0] - 2026-07-28
 

@@ -36,7 +36,10 @@ IDEMPOTENT_METHODS = frozenset({"GET", "HEAD", "DELETE"})
 
 
 def _path_segment(value: object) -> str:
-    return quote(str(value), safe="")
+    segment = quote(str(value), safe="")
+    if segment in {"", ".", ".."}:
+        raise ValueError(f"path segment must not be empty, '.' or '..' (got {value!r})")
+    return segment
 
 
 def _parse_retry_after(value: str | None) -> float | None:

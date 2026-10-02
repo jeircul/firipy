@@ -3,6 +3,8 @@
 import asyncio
 import itertools
 import time
+from datetime import UTC, datetime, timedelta
+from email.utils import format_datetime
 from typing import Any
 
 import httpx
@@ -452,17 +454,19 @@ async def test_retry_after_http_date_or_garbage_is_retried(retry_after: str) -> 
 @respx.mock
 async def test_rate_limit_error_parses_http_date_retry_after() -> None:
     """An HTTP-date Retry-After must surface as FiriRateLimitError."""
+    when = datetime.now(UTC) + timedelta(seconds=120)
     respx.get(f"{BASE_URL}/v2/markets").mock(
         return_value=httpx.Response(
             429,
             json={"message": "too many"},
-            headers={"Retry-After": "Wed, 21 Oct 2015 07:28:00 GMT"},
+            headers={"Retry-After": format_datetime(when, usegmt=True)},
         )
     )
     client = FiriAPI(API_KEY, rate_limit=0, base_url=BASE_URL, max_retries=0)
     with pytest.raises(FiriRateLimitError) as exc_info:
         await client.get("/v2/markets")
-    assert exc_info.value.retry_after == 0.0
+    assert exc_info.value.retry_after is not None
+    assert 100 < exc_info.value.retry_after <= 120
     await client.aclose()
 
 
@@ -476,3 +480,12 @@ async def test_path_values_are_percent_encoded(client: FiriAPI) -> None:
     await client.markets_market("BTC/NOK")
     paths = [call.request.url.raw_path for call in route.calls]
     assert paths == [b"/v2/order/..%2Fbalances", b"/v2/markets/BTC%2FNOK"]
+
+
+@pytest.mark.parametrize("value", ["", ".", ".."])
+async def test_dot_and_empty_path_values_are_rejected(
+    client: FiriAPI, value: str
+) -> None:
+    """``.``, ``..`` and empty values would resolve to a different endpoint."""
+    with pytest.raises(ValueError):
+        await client.order(value)
